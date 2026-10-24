@@ -3111,7 +3111,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 const char* dot_anim = (anim_frame == 0) ? "" : (anim_frame == 1) ? "." : (anim_frame == 2) ? ".." : "...";
                 bool cursor_blink = ((int)(ImGui::GetTime() * 2.5f) % 2) == 0;
 
-                ImGui::BeginChild("ai_writing_bubble", ImVec2(bubble_w, 0), true, ImGuiWindowFlags_AlwaysAutoResize);
+                ImVec2 text_sz = ImGui::CalcTextSize(live_text.c_str(), NULL, false, bubble_w - 32.0f);
+                float live_bubble_h = text_sz.y + 70.0f;
+                if (live_bubble_h < 85.0f) live_bubble_h = 85.0f;
+
+                ImGui::BeginChild("ai_writing_bubble", ImVec2(bubble_w, live_bubble_h), true, ImGuiWindowFlags_NoScrollbar);
                 
                 // Header Penulisan
                 ImGui::TextColored(ImVec4(0.22f, 0.74f, 0.97f, 1.0f), "AI sedang menulis jawaban%s", dot_anim);
