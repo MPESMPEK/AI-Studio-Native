@@ -41,11 +41,10 @@ if not exist "cpp_core\obj\imgui_impl_dx11.o" %CXX% %CFLAGS% -c "cpp_core\imgui\
 if %ERRORLEVEL% NEQ 0 goto error
 
 echo [LINKING] Linking AI-Studio.exe...
-%CXX% -mwindows -s "cpp_core\obj\gui_main.o" "cpp_core\obj\engine_core.o" "cpp_core\obj\image_motion.o" "cpp_core\obj\imgui.o" "cpp_core\obj\imgui_draw.o" "cpp_core\obj\imgui_tables.o" "cpp_core\obj\imgui_widgets.o" "cpp_core\obj\imgui_impl_win32.o" "cpp_core\obj\imgui_impl_dx11.o" -ld3d11 -ldxgi -lgdi32 -ld3dcompiler -ldwmapi -lshell32 -lpsapi -lole32 -ladvapi32 -fopenmp -lcomdlg32 -o "AI-Studio.exe"
+%CXX% -mwindows -s "cpp_core\obj\gui_main.o" "cpp_core\obj\engine_core.o" "cpp_core\obj\image_motion.o" "cpp_core\obj\imgui.o" "cpp_core\obj\imgui_draw.o" "cpp_core\obj\imgui_tables.o" "cpp_core\obj\imgui_widgets.o" "cpp_core\obj\imgui_impl_win32.o" "cpp_core\obj\imgui_impl_dx11.o" -ld3d11 -ldxgi -lgdi32 -ld3dcompiler -ldwmapi -lshell32 -lpsapi -lole32 -ladvapi32 -fopenmp -lcomdlg32 -lwinmm -o "AI-Studio.exe"
 if %ERRORLEVEL% NEQ 0 goto error
 
 echo [ALL DONE SUCCESSFUL]
-copy /Y "AI-Studio.exe" "cpp_core\bin\ai_studio_native.exe" >nul 2>&1
 if exist "AI-Studio-Pro.exe" del /f /q "AI-Studio-Pro.exe" >nul 2>&1
 echo [BUILD COMPLETE]
 exit /b 0

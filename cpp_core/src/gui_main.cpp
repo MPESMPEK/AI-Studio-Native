@@ -15,6 +15,7 @@
 #include <mutex>
 #include <chrono>
 #include <sapi.h>
+#include <mmsystem.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../include/stb_image.h"
@@ -156,6 +157,125 @@ void SpeakTextAsync(const std::string& text) {
             pVoice->Release();
         }
         CoUninitialize();
+    }).detach();
+}
+
+// ================= SISTEM SUARA MANUSIA ASLI (NATURAL HUMAN VOICE) =================
+static std::atomic<bool> g_is_speaking(false);
+static std::atomic<bool> g_stop_speaking_requested(false);
+static int g_voice_character = 0; // 0=Gadis (Wanita), 1=Ardi (Pria), 2=Piper Offline
+static const char* g_voice_character_names[] = { "👩 Gadis (Wanita - Ramah)", "👨 Ardi (Pria - Sopan)", "📻 Piper (Offline News)" };
+
+void StopSpeakingVoice() {
+    g_stop_speaking_requested.store(true);
+    mciSendStringA("stop ai_voice_player", NULL, 0, NULL);
+    mciSendStringA("close ai_voice_player", NULL, 0, NULL);
+    g_is_speaking.store(false);
+}
+
+void TriggerWindowsVoiceTyping() {
+    keybd_event(VK_LWIN, 0, 0, 0);
+    keybd_event('H', 0, 0, 0);
+    keybd_event('H', 0, KEYEVENTF_KEYUP, 0);
+    keybd_event(VK_LWIN, 0, KEYEVENTF_KEYUP, 0);
+}
+
+void SpeakNaturalVoiceAsync(const std::string& text, int voice_char = -1) {
+    if (text.empty()) return;
+    if (voice_char < 0) voice_char = g_voice_character;
+
+    StopSpeakingVoice();
+    g_stop_speaking_requested.store(false);
+
+    std::thread([text, voice_char]() {
+        g_is_speaking.store(true);
+
+        std::string clean_spoken = "";
+        bool in_code_block = false;
+        for (size_t i = 0; i < text.length(); i++) {
+            if (text[i] == '`') {
+                if (i + 2 < text.length() && text[i+1] == '`' && text[i+2] == '`') {
+                    in_code_block = !in_code_block;
+                    i += 2;
+                    continue;
+                }
+                continue;
+            }
+            if (in_code_block) continue;
+            char c = text[i];
+            if (c != '*' && c != '#' && c != '_' && c != '~' && c != '>' && c != '[' && c != ']' && c != '\\') {
+                clean_spoken += c;
+            }
+        }
+
+        while (!clean_spoken.empty() && (clean_spoken.front() == '\n' || clean_spoken.front() == '\r' || clean_spoken.front() == ' ')) {
+            clean_spoken.erase(clean_spoken.begin());
+        }
+
+        if (clean_spoken.length() > 600) {
+            clean_spoken = clean_spoken.substr(0, 597) + "... dan seterusnya.";
+        }
+
+        if (clean_spoken.empty()) {
+            g_is_speaking.store(false);
+            return;
+        }
+
+        CreateDirectoryA("outputs", NULL);
+        std::string audio_file = "outputs\\ai_voice_response.mp3";
+        std::string text_temp = "outputs\\voice_prompt_temp.txt";
+
+        FILE* fp = fopen(text_temp.c_str(), "w");
+        if (fp) {
+            fputs(clean_spoken.c_str(), fp);
+            fclose(fp);
+        }
+
+        char cmd[1024];
+        if (voice_char == 2) {
+            audio_file = "outputs\\ai_voice_response.wav";
+            snprintf(cmd, sizeof(cmd), "cmd.exe /c type \"%s\" | piper.exe --model \"models\\Audio_Suara\\id_ID-news_tts-medium.onnx\" --output_file \"%s\"",
+                     text_temp.c_str(), audio_file.c_str());
+        } else {
+            const char* vname = (voice_char == 1) ? "id-ID-ArdiNeural" : "id-ID-GadisNeural";
+            snprintf(cmd, sizeof(cmd), "edge-tts --voice %s -f \"%s\" --write-media \"%s\"",
+                     vname, text_temp.c_str(), audio_file.c_str());
+        }
+
+        STARTUPINFOA si;
+        PROCESS_INFORMATION pi;
+        ZeroMemory(&si, sizeof(si));
+        si.cb = sizeof(si);
+        si.dwFlags = STARTF_USESHOWWINDOW;
+        si.wShowWindow = SW_HIDE;
+        ZeroMemory(&pi, sizeof(pi));
+
+        if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+            WaitForSingleObject(pi.hProcess, 15000);
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
+        }
+
+        DeleteFileA(text_temp.c_str());
+
+        if (g_stop_speaking_requested.load()) {
+            g_is_speaking.store(false);
+            return;
+        }
+
+        if (GetFileAttributesA(audio_file.c_str()) != INVALID_FILE_ATTRIBUTES) {
+            char mci_cmd[512];
+            mciSendStringA("close ai_voice_player", NULL, 0, NULL);
+            snprintf(mci_cmd, sizeof(mci_cmd), "open \"%s\" type %s alias ai_voice_player",
+                     audio_file.c_str(), (voice_char == 2) ? "waveaudio" : "mpegvideo");
+            mciSendStringA(mci_cmd, NULL, 0, NULL);
+            mciSendStringA("play ai_voice_player wait", NULL, 0, NULL);
+            mciSendStringA("close ai_voice_player", NULL, 0, NULL);
+        } else {
+            SpeakTextAsync(clean_spoken);
+        }
+
+        g_is_speaking.store(false);
     }).detach();
 }
 
@@ -1838,7 +1958,7 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
     g_worker_finished = true;
 }
 
-static const char* g_mode_names[] = { "Otomatis", "Chat Teks", "Buat Foto", "NSFW / Dewasa", "Buat Video" };
+static const char* g_mode_names[] = { "Otomatis", "Chat Teks", "Buat Foto", "NSFW / Dewasa", "Buat Video", "🗣️ Suara AI" };
 
 static std::string GetCurrentTimestamp() {
     time_t rawtime;
@@ -2303,18 +2423,41 @@ void RenderWhatsAppBubble(const ChatMsg& msg, float chat_w, int idx) {
         ImGui::Spacing();
     }
 
-    // 3. Tombol Suara / TTS untuk Chat Teks AI
+    // 3. Tombol Suara Alami (Natural Human Voice) untuk Chat Teks AI
     if (!is_user && msg.image_path.empty()) {
         ImGui::Separator();
         ImGui::Spacing();
 
-        char btn_voice[64];
-        snprintf(btn_voice, sizeof(btn_voice), "Dengar Suara##%d", idx);
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.40f, 0.65f, 1.0f));
-        if (ImGui::Button(btn_voice, ImVec2(120, 26))) {
-            SpeakTextAsync(msg.text);
+        char btn_gadis[64], btn_ardi[64];
+        snprintf(btn_gadis, sizeof(btn_gadis), "🔊 Gadis (Wanita)##%d", idx);
+        snprintf(btn_ardi, sizeof(btn_ardi), "🔊 Ardi (Pria)##%d", idx);
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.08f, 0.48f, 0.42f, 0.9f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.12f, 0.65f, 0.55f, 1.0f));
+        if (ImGui::Button(btn_gadis, ImVec2(130, 26))) {
+            SpeakNaturalVoiceAsync(msg.text, 0);
         }
-        ImGui::PopStyleColor();
+        ImGui::PopStyleColor(2);
+
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.35f, 0.55f, 0.9f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.48f, 0.72f, 1.0f));
+        if (ImGui::Button(btn_ardi, ImVec2(120, 26))) {
+            SpeakNaturalVoiceAsync(msg.text, 1);
+        }
+        ImGui::PopStyleColor(2);
+
+        if (g_is_speaking.load()) {
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.70f, 0.15f, 0.15f, 0.85f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.90f, 0.20f, 0.20f, 1.0f));
+            char btn_stop[64];
+            snprintf(btn_stop, sizeof(btn_stop), "⏹️ Stop##%d", idx);
+            if (ImGui::Button(btn_stop, ImVec2(65, 26))) {
+                StopSpeakingVoice();
+            }
+            ImGui::PopStyleColor(2);
+        }
         ImGui::Spacing();
     }
 
@@ -2421,7 +2564,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
                 ChatMsg aiMsg;
                 aiMsg.role = "AI Studio";
-                aiMsg.tag = (g_pending_mode == 3) ? "NSFW Dewasa (C++)" : (g_pending_mode == 2) ? "Foto Diffusion (C++)" : (g_pending_mode == 4) ? "Video AI" : "AI LLM (C++)";
+                aiMsg.tag = (g_pending_mode == 5) ? "Asisten Suara (C++)" : (g_pending_mode == 3) ? "NSFW Dewasa (C++)" : (g_pending_mode == 2) ? "Foto Diffusion (C++)" : (g_pending_mode == 4) ? "Video AI" : "AI LLM (C++)";
                 aiMsg.timestamp = GetCurrentTimestamp();
                 aiMsg.text = g_worker_result;
                 aiMsg.image_path = g_worker_img_path;
@@ -2438,6 +2581,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     cur_sess.messages.push_back(aiMsg);
                     cur_sess.last_time = aiMsg.timestamp;
                     SaveSessionToFile(cur_sess);
+                }
+
+                // Otomatis bicara dengan suara manusia asli jika di Mode 5 (Suara AI) atau Voice TTS aktif
+                if (g_pending_mode == 5 || (g_voice_enabled && g_pending_mode == 1)) {
+                    SpeakNaturalVoiceAsync(aiMsg.text, g_voice_character);
                 }
 
                 g_worker_img_path = "";
@@ -2607,7 +2755,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         ImGui::Text("Mode:");
         ImGui::SameLine();
 
-        for (int m = 0; m < 5; m++) {
+        for (int m = 0; m < 6; m++) {
             if (m > 0) ImGui::SameLine();
             bool is_active = (g_selected_mode == m);
             if (m == 3) {
@@ -2618,6 +2766,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 } else {
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.38f, 0.08f, 0.18f, 0.9f));
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.55f, 0.12f, 0.26f, 1.0f));
+                }
+            } else if (m == 5) {
+                // Tombol Suara AI dengan warna Emerald / Mint Berkilau
+                if (is_active) {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.08f, 0.65f, 0.52f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.12f, 0.78f, 0.62f, 1.0f));
+                } else {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.06f, 0.25f, 0.22f, 0.85f));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.10f, 0.36f, 0.30f, 1.0f));
                 }
             } else {
                 if (is_active) {
@@ -2851,6 +3008,66 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
             ImGui::EndChild(); // PhotoSubNavbar
             ImGui::PopStyleColor(2);
+        } else if (g_selected_mode == 5) {
+            subbar_h = 42.0f;
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.05f, 0.16f, 0.15f, 0.90f));
+            ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.12f, 0.55f, 0.48f, 0.70f));
+            ImGui::BeginChild("VoiceSubNavbar", ImVec2(right_panel_width, 38), true, ImGuiWindowFlags_NoScrollbar);
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextColored(ImVec4(0.35f, 0.95f, 0.82f, 1.0f), "🎙️ SUARA:");
+            ImGui::SameLine();
+
+            for (int vc = 0; vc < 3; vc++) {
+                if (vc > 0) ImGui::SameLine();
+                bool active = (g_voice_character == vc);
+                if (active) {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f, 0.65f, 0.52f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.15f, 0.78f, 0.62f, 1.0f));
+                } else {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.08f, 0.22f, 0.20f, 0.7f));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.12f, 0.32f, 0.28f, 1.0f));
+                }
+                if (ImGui::Button(g_voice_character_names[vc], ImVec2(0, 24))) {
+                    g_voice_character = vc;
+                }
+                ImGui::PopStyleColor(2);
+            }
+
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+
+            if (g_is_speaking.load()) {
+                static float anim_dot = 0.0f;
+                anim_dot += 0.05f;
+                int wave = (int)(sinf(anim_dot * 3.0f) * 2.0f + 2.0f);
+                const char* waves[] = { " ~ ~ ~ ", " ∿ ~ ∿ ", " ∿ ∿ ∿ ", " ~ ∿ ~ ", " ~ ~ ~ " };
+                const char* wstr = waves[(wave >= 0 && wave < 5) ? wave : 0];
+                ImGui::TextColored(ImVec4(0.35f, 1.0f, 0.65f, 1.0f), "🔊 AI Sedang Berbicara%s", wstr);
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.18f, 0.18f, 0.9f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.95f, 0.25f, 0.25f, 1.0f));
+                if (ImGui::Button("⏹️ Hentikan", ImVec2(0, 24))) {
+                    StopSpeakingVoice();
+                }
+                ImGui::PopStyleColor(2);
+            } else {
+                ImGui::TextColored(ImVec4(0.55f, 0.88f, 0.80f, 0.9f), "💤 Siap Bicara (Ketik / Gunakan Mic)");
+                ImGui::SameLine();
+                ImGui::TextDisabled("|");
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Ceritakan lelucon")) {
+                    strcpy(g_input_prompt, "Ceritakan satu lelucon lucu bahasa Indonesia yang singkat dan bikin ketawa!");
+                }
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Siapa kamu?")) {
+                    strcpy(g_input_prompt, "Halo! Ceritakan tentang dirimu dan apa saja yang bisa kamu bantu.");
+                }
+            }
+
+            ImGui::EndChild(); // VoiceSubNavbar
+            ImGui::PopStyleColor(2);
         }
 
         // B. CHAT CANVAS (Scrollable Area)
@@ -3064,37 +3281,50 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         ImGui::SameLine();
 
-        // Tombol ✨ Prompt Pintar (AI Expander)
+        // Tombol Input Ekstra (✨ Prompt Pintar untuk Foto, atau 🎙️ Bicara untuk Suara AI)
         if (smart_btn_w > 0.0f) {
-            if (g_is_optimizing_prompt.load()) {
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.35f, 0.20f, 0.55f, 1.0f));
-                ImGui::Button("✨ Berpikir...", ImVec2(smart_btn_w, 52));
-                ImGui::PopStyleColor();
-            } else {
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.45f, 0.18f, 0.72f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.58f, 0.24f, 0.90f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.35f, 0.12f, 0.60f, 1.0f));
-                if (ImGui::Button("✨ Prompt Pintar", ImVec2(smart_btn_w, 52))) {
-                    if (strlen(g_input_prompt) > 0 && !g_is_processing) {
-                        g_is_optimizing_prompt.store(true);
-                        std::string user_idea = g_input_prompt;
-                        int current_framing = g_framing_idx;
-                        if (g_optimize_thread.joinable()) g_optimize_thread.join();
-                        g_optimize_thread = std::thread([user_idea, current_framing]() {
-                            std::string res = GenerateSmartPrompt(user_idea, g_num_threads, current_framing);
-                            if (!res.empty()) {
-                                std::lock_guard<std::mutex> lock(g_input_mutex);
-                                strncpy(g_input_prompt, res.c_str(), sizeof(g_input_prompt) - 1);
-                                g_input_prompt[sizeof(g_input_prompt) - 1] = '\0';
-                            }
-                            g_is_optimizing_prompt.store(false);
-                        });
-                    }
+            if (g_selected_mode == 5) {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.08f, 0.55f, 0.45f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.12f, 0.70f, 0.58f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.05f, 0.42f, 0.35f, 1.0f));
+                if (ImGui::Button("🎙️ Bicara", ImVec2(smart_btn_w, 52))) {
+                    TriggerWindowsVoiceTyping();
                 }
                 if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("Klik untuk mengubah ide singkat Anda menjadi prompt fotorealistis kaya detail dengan AI!");
+                    ImGui::SetTooltip("Aktifkan Mikrofon: Bicara dalam Bahasa Indonesia, kata-kata Anda akan otomatis diketik ke kolom pesan!");
                 }
                 ImGui::PopStyleColor(3);
+            } else {
+                if (g_is_optimizing_prompt.load()) {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.35f, 0.20f, 0.55f, 1.0f));
+                    ImGui::Button("✨ Berpikir...", ImVec2(smart_btn_w, 52));
+                    ImGui::PopStyleColor();
+                } else {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.45f, 0.18f, 0.72f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.58f, 0.24f, 0.90f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.35f, 0.12f, 0.60f, 1.0f));
+                    if (ImGui::Button("✨ Prompt Pintar", ImVec2(smart_btn_w, 52))) {
+                        if (strlen(g_input_prompt) > 0 && !g_is_processing) {
+                            g_is_optimizing_prompt.store(true);
+                            std::string user_idea = g_input_prompt;
+                            int current_framing = g_framing_idx;
+                            if (g_optimize_thread.joinable()) g_optimize_thread.join();
+                            g_optimize_thread = std::thread([user_idea, current_framing]() {
+                                std::string res = GenerateSmartPrompt(user_idea, g_num_threads, current_framing);
+                                if (!res.empty()) {
+                                    std::lock_guard<std::mutex> lock(g_input_mutex);
+                                    strncpy(g_input_prompt, res.c_str(), sizeof(g_input_prompt) - 1);
+                                    g_input_prompt[sizeof(g_input_prompt) - 1] = '\0';
+                                }
+                                g_is_optimizing_prompt.store(false);
+                            });
+                        }
+                    }
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip("Klik untuk mengubah ide singkat Anda menjadi prompt fotorealistis kaya detail dengan AI!");
+                    }
+                    ImGui::PopStyleColor(3);
+                }
             }
             ImGui::SameLine();
         }
@@ -3146,7 +3376,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 }
                 {
                     std::lock_guard<std::mutex> lock(g_status_mutex);
-                    g_process_status = g_has_init_image ? "Mempersiapkan Edit Foto (Image-to-Image)..." : ((g_selected_mode == 2 || g_selected_mode == 3) ? "Mempersiapkan model foto C++..." : "Mempersiapkan model LLM C++...");
+                    g_process_status = g_has_init_image ? "Mempersiapkan Edit Foto (Image-to-Image)..." : ((g_selected_mode == 2 || g_selected_mode == 3) ? "Mempersiapkan model foto C++..." : (g_selected_mode == 5) ? "Mempersiapkan Asisten Suara C++..." : "Mempersiapkan model LLM C++...");
                 }
 
                 if (g_worker_thread.joinable()) {
