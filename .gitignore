@@ -1,0 +1,45 @@
+# ====================================================================
+# Git Ignore - AI Studio Pure C++ Native Project
+# ====================================================================
+
+# 1. Model AI (Ukuran Besar GB - Jangan di-upload ke GitHub)
+models/*
+!models/README.md
+*.gguf
+*.safetensors
+*.bin
+*.ckpt
+*.onnx
+
+# 2. Toolkit Compiler GCC MinGW (Ukuran 700MB+ - Unduh resmi via w64devkit)
+w64devkit/
+
+# 3. Hasil Build & File Objek Sementara
+cpp_core/obj/
+cpp_core/bin/
+*.o
+*.obj
+*.log
+cpp_core/native_gui.log
+
+# 4. File Output & Riwayat Pribadi
+outputs/
+sessions/
+history/
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.mp4
+
+# 5. File Sampah OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# 6. File Sementara
+*.tmp
+*.bak
+scratch/
