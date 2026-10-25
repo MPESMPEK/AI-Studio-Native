@@ -14,6 +14,7 @@
 #include <atomic>
 #include <mutex>
 #include <chrono>
+#include <fstream>
 #include <sapi.h>
 #include <mmsystem.h>
 
@@ -108,6 +109,13 @@ static float g_controlnet_strength = 0.90f;
 static ID3D11ShaderResourceView* g_init_image_view = NULL;
 static int g_init_image_w = 0;
 static int g_init_image_h = 0;
+
+// Document / File Attachment Globals
+static char g_attached_doc_path[512] = "";
+static bool g_has_attached_doc = false;
+static std::string g_attached_doc_content = "";
+static size_t g_attached_doc_size_bytes = 0;
+static int g_attached_doc_lines = 0;
 
 // Processing / Loading State
 static bool g_is_processing = false;
@@ -350,6 +358,103 @@ void ClearInitImage() {
     }
     g_init_image_path[0] = '\0';
     g_has_init_image = false;
+}
+
+void ClearAttachedDocument() {
+    g_attached_doc_path[0] = '\0';
+    g_has_attached_doc = false;
+    g_attached_doc_content.clear();
+    g_attached_doc_size_bytes = 0;
+    g_attached_doc_lines = 0;
+}
+
+bool AttachDocument(const char* path) {
+    if (!path || strlen(path) == 0) return false;
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) return false;
+
+    file.seekg(0, std::ios::end);
+    size_t fsize = (size_t)file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    g_attached_doc_size_bytes = fsize;
+
+    const size_t MAX_READ_BYTES = 45000;
+    size_t to_read = (fsize < MAX_READ_BYTES) ? fsize : MAX_READ_BYTES;
+
+    std::string raw_content(to_read, '\0');
+    file.read(&raw_content[0], to_read);
+    file.close();
+
+    std::string ext = "";
+    std::string path_str = path;
+    size_t dot_pos = path_str.find_last_of('.');
+    if (dot_pos != std::string::npos) {
+        ext = path_str.substr(dot_pos);
+        for (char& c : ext) c = (char)tolower(c);
+    }
+
+    std::string clean_text = "";
+    if (ext == ".pdf") {
+        for (size_t i = 0; i < raw_content.size(); ++i) {
+            char c = raw_content[i];
+            if ((unsigned char)c >= 32 && (unsigned char)c <= 126) {
+                clean_text += c;
+            } else if (c == '\n' || c == '\r' || c == '\t') {
+                if (!clean_text.empty() && clean_text.back() != '\n') {
+                    clean_text += '\n';
+                }
+            }
+        }
+        if (clean_text.length() > 20000) clean_text = clean_text.substr(0, 20000);
+    } else {
+        for (char c : raw_content) {
+            if (c != '\0') clean_text += c;
+        }
+    }
+
+    if (fsize > MAX_READ_BYTES) {
+        clean_text += "\n\n...[Isi dokumen dipotong karena ukuran melebihi batas baca awal 45 KB]...";
+    }
+
+    int lines = 1;
+    for (char c : clean_text) {
+        if (c == '\n') lines++;
+    }
+
+    strncpy(g_attached_doc_path, path, sizeof(g_attached_doc_path) - 1);
+    g_attached_doc_path[sizeof(g_attached_doc_path) - 1] = '\0';
+    g_attached_doc_content = clean_text;
+    g_attached_doc_lines = lines;
+    g_has_attached_doc = true;
+
+    // Otomatis beralih ke Mode Chat jika sedang di mode foto
+    if (g_selected_mode == 2 || g_selected_mode == 3) {
+        g_selected_mode = 1;
+    }
+
+    return true;
+}
+
+std::string OpenDocumentFileDialog(HWND hWnd) {
+    char szFile[MAX_PATH] = { 0 };
+    OPENFILENAMEA ofn;
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = hWnd;
+    ofn.lpstrFile = szFile;
+    ofn.nMaxFile = sizeof(szFile);
+    ofn.lpstrFilter = "Semua Dokumen (*.txt;*.md;*.pdf;*.csv;*.json;*.py;*.c;*.cpp;*.log)\0*.txt;*.md;*.pdf;*.csv;*.json;*.py;*.c;*.cpp;*.log;*.h;*.hpp;*.html;*.js;*.bat;*.ini;*.xml;*.yaml\0File Teks (*.txt;*.md;*.log)\0*.txt;*.md;*.log\0Kode Pemrograman (*.c;*.cpp;*.py;*.js;*.html)\0*.c;*.cpp;*.py;*.js;*.html;*.h;*.hpp;*.bat\0File Data (*.csv;*.json;*.xml)\0*.csv;*.json;*.xml\0Semua File (*.*)\0*.*\0";
+    ofn.nFilterIndex = 1;
+    ofn.lpstrFileTitle = NULL;
+    ofn.nMaxFileTitle = 0;
+    ofn.lpstrInitialDir = NULL;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+
+    if (GetOpenFileNameA(&ofn) == TRUE) {
+        return std::string(szFile);
+    }
+    return "";
 }
 
 std::string OpenImageFileDialog(HWND hWnd) {
@@ -1501,7 +1606,9 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
 
     // 1. Deteksi Mode Otomatis jika mode == 0
     int actual_mode = mode;
-    if (!init_img_path.empty()) {
+    if (prompt.find("[DOKUMEN LAMPIRAN:") != std::string::npos) {
+        actual_mode = 1; // Analisis dokumen wajib diarahkan ke Chat LLM
+    } else if (!init_img_path.empty()) {
         if (actual_mode == 0 || actual_mode == 1) {
             actual_mode = 2; // Jika ada foto asal, otomatis beralih ke mode Foto / Edit
         }
@@ -1530,7 +1637,9 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
     }
 
     bool is_photo = false;
-    if (actual_mode == 2) {
+    if (prompt.find("[DOKUMEN LAMPIRAN:") != std::string::npos) {
+        is_photo = false;
+    } else if (actual_mode == 2) {
         is_photo = true;
     } else if (actual_mode == 3) {
         std::string lower_p = prompt;
@@ -1795,18 +1904,26 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
             model_path = g_detected_llms[0].full_path;
         }
 
+        // Simpan prompt ke file sementara agar bebas dari batasan panjang baris perintah Windows (CreateProcess 8KB limit)
+        std::string prompt_file_path = "llama_prompt.txt";
+        std::ofstream pfile(prompt_file_path, std::ios::binary);
+        if (pfile.is_open()) {
+            pfile.write(prompt.data(), prompt.size());
+            pfile.close();
+        }
+
         bool is_rtx_active = (g_hardware_backend_mode == 2 || (g_hardware_backend_mode == 0 && g_hw_profile.has_nvidia_gpu));
         int actual_gpu_layers = is_rtx_active ? (g_gpu_layers > 0 ? g_gpu_layers : 99) : 0;
 
         if (actual_gpu_layers > 0) {
             snprintf(cmd, sizeof(cmd),
-                "llama_bin\\llama-cli.exe -m \"%s\" -p \"%s\" -ngl %d -n 256 -t %d --single-turn --no-display-prompt --log-disable --simple-io",
-                model_path.c_str(), safe_prompt.c_str(), actual_gpu_layers, num_threads
+                "llama_bin\\llama-cli.exe -m \"%s\" -f \"%s\" -ngl %d -c 4096 -n 512 -t %d --single-turn --no-display-prompt --log-disable --simple-io",
+                model_path.c_str(), prompt_file_path.c_str(), actual_gpu_layers, num_threads
             );
         } else {
             snprintf(cmd, sizeof(cmd),
-                "llama_bin\\llama-cli.exe -m \"%s\" -p \"%s\" -n 256 -t %d --single-turn --no-display-prompt --log-disable --simple-io",
-                model_path.c_str(), safe_prompt.c_str(), num_threads
+                "llama_bin\\llama-cli.exe -m \"%s\" -f \"%s\" -c 4096 -n 512 -t %d --single-turn --no-display-prompt --log-disable --simple-io",
+                model_path.c_str(), prompt_file_path.c_str(), num_threads
             );
         }
     }
@@ -3123,7 +3240,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         }
 
         // B. CHAT CANVAS (Scrollable Area)
-        float input_area_h = g_has_init_image ? 172.0f : 92.0f;
+        float input_card_h = 0.0f;
+        if (g_has_init_image) input_card_h += 80.0f;
+        if (g_has_attached_doc) input_card_h += 52.0f;
+        float input_area_h = 92.0f + input_card_h;
         float chat_canvas_h = app_height - 42.0f - subbar_h - input_area_h - 32.0f;
         if (chat_canvas_h < 120.0f) chat_canvas_h = 120.0f;
 
@@ -3261,6 +3381,56 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         // C. BOTTOM INPUT AREA (Hanya di Kolom Kanan)
         ImGui::BeginChild("BottomInput", ImVec2(right_panel_width, input_area_h), false, ImGuiWindowFlags_NoScrollbar);
+
+        // Preview Lampiran Dokumen jika ada file dokumen yang dipilih
+        if (g_has_attached_doc) {
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.10f, 0.16f, 0.20f, 0.95f));
+            ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.20f, 0.70f, 0.60f, 0.75f));
+            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 6.0f);
+            ImGui::BeginChild("AttachedDocCard", ImVec2(right_panel_width - 12.0f, 44.0f), true, ImGuiWindowFlags_NoScrollbar);
+
+            std::string fname = g_attached_doc_path;
+            size_t slash = fname.find_last_of("\\/");
+            if (slash != std::string::npos) fname = fname.substr(slash + 1);
+            if (fname.length() > 30) fname = fname.substr(0, 27) + "...";
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextColored(ImVec4(0.35f, 0.95f, 0.75f, 1.0f), "📄 DOKUMEN: %s", fname.c_str());
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+
+            float kb_size = (float)g_attached_doc_size_bytes / 1024.0f;
+            if (kb_size < 1024.0f) {
+                ImGui::TextDisabled("(%.1f KB, %d baris)", kb_size, g_attached_doc_lines);
+            } else {
+                ImGui::TextDisabled("(%.2f MB, %d baris)", kb_size / 1024.0f, g_attached_doc_lines);
+            }
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+
+            if (ImGui::Button("Ganti File", ImVec2(80, 24))) {
+                std::string chosen = OpenDocumentFileDialog(g_hMainWnd);
+                if (!chosen.empty()) {
+                    AttachDocument(chosen.c_str());
+                }
+            }
+
+            ImGui::SameLine();
+
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.60f, 0.15f, 0.15f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.80f, 0.20f, 0.20f, 1.0f));
+            if (ImGui::Button("Batal ❌##Doc", ImVec2(75, 24))) {
+                ClearAttachedDocument();
+            }
+            ImGui::PopStyleColor(2);
+
+            ImGui::EndChild();
+            ImGui::PopStyleVar();
+            ImGui::PopStyleColor(2);
+            ImGui::Spacing();
+        }
 
         // Preview Foto Awal jika sedang mode Edit Foto (Image-to-Image) / ControlNet
         if (g_has_init_image) {
@@ -3414,12 +3584,30 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             ImGui::Button("Proses...", ImVec2(send_btn_w, 52));
             ImGui::PopStyleColor();
         } else {
-            if ((ImGui::Button("Kirim", ImVec2(send_btn_w, 52)) || enter_pressed) && strlen(g_input_prompt) > 0) {
+            if ((ImGui::Button("Kirim", ImVec2(send_btn_w, 52)) || enter_pressed) && (strlen(g_input_prompt) > 0 || g_has_attached_doc)) {
+                std::string actual_prompt_to_send = g_input_prompt;
+                if (actual_prompt_to_send.empty()) {
+                    actual_prompt_to_send = "Tolong baca, jelaskan ringkasan, dan analisis poin-poin penting dari isi dokumen ini secara terstruktur.";
+                }
+
+                std::string prompt_for_worker = actual_prompt_to_send;
+                std::string doc_tag = "";
+                if (g_has_attached_doc) {
+                    std::string doc_name = g_attached_doc_path;
+                    size_t sl = doc_name.find_last_of("\\/");
+                    if (sl != std::string::npos) doc_name = doc_name.substr(sl + 1);
+
+                    prompt_for_worker = "[DOKUMEN LAMPIRAN: " + doc_name + "]\n" + g_attached_doc_content + "\n[/DOKUMEN LAMPIRAN]\n\nPertanyaan/Instruksi Pengguna: " + actual_prompt_to_send;
+                    doc_tag = "Anda (📄 " + doc_name + ")";
+                }
+
                 ChatMsg userMsg;
                 userMsg.role = "User";
-                userMsg.text = g_input_prompt;
+                userMsg.text = actual_prompt_to_send;
                 userMsg.timestamp = GetCurrentTimestamp();
-                if (g_has_init_image) {
+                if (!doc_tag.empty()) {
+                    userMsg.tag = doc_tag;
+                } else if (g_has_init_image) {
                     userMsg.tag = g_use_controlnet ? "Anda (ControlNet Pose)" : "Anda (Edit Foto)";
                     userMsg.image_path = g_init_image_path;
                     int uw = 0, uh = 0;
@@ -3435,7 +3623,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     cur_sess.messages.push_back(userMsg);
                     cur_sess.last_time = userMsg.timestamp;
                     if (cur_sess.title == "Percakapan Baru" || cur_sess.title.rfind("Percakapan #", 0) == 0) {
-                        std::string clean_title = g_input_prompt;
+                        std::string clean_title = actual_prompt_to_send;
                         if (clean_title.length() > 24) clean_title = clean_title.substr(0, 21) + "...";
                         cur_sess.title = clean_title;
                     }
@@ -3443,10 +3631,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     SaveSessionsIndex();
                 }
 
+                int target_mode = g_has_attached_doc ? 1 : g_selected_mode;
+
                 g_is_processing = true;
                 g_process_progress.store(0.05f);
-                g_pending_prompt = g_input_prompt;
-                g_pending_mode = g_selected_mode;
+                g_pending_prompt = prompt_for_worker;
+                g_pending_mode = target_mode;
                 g_worker_finished = false;
                 g_worker_result = "";
                 g_process_start_time = std::chrono::steady_clock::now();
@@ -3456,20 +3646,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 }
                 {
                     std::lock_guard<std::mutex> lock(g_status_mutex);
-                    g_process_status = g_has_init_image ? (g_use_controlnet ? "Mempersiapkan Kunci Pose (ControlNet Canny)..." : "Mempersiapkan Edit Foto (Image-to-Image)...") : ((g_selected_mode == 2 || g_selected_mode == 3) ? "Mempersiapkan model foto C++..." : (g_selected_mode == 5) ? "Mempersiapkan Asisten Suara C++..." : "Mempersiapkan model LLM C++...");
+                    g_process_status = g_has_attached_doc ? "Membaca dan menganalisis dokumen..." : (g_has_init_image ? (g_use_controlnet ? "Mempersiapkan Kunci Pose (ControlNet Canny)..." : "Mempersiapkan Edit Foto (Image-to-Image)...") : ((g_selected_mode == 2 || g_selected_mode == 3) ? "Mempersiapkan model foto C++..." : (g_selected_mode == 5) ? "Mempersiapkan Asisten Suara C++..." : "Mempersiapkan model LLM C++..."));
                 }
 
                 if (g_worker_thread.joinable()) {
                     g_worker_thread.join();
                 }
-                std::string current_init = g_has_init_image ? g_init_image_path : "";
+                std::string current_init = (g_has_init_image && !g_has_attached_doc) ? g_init_image_path : "";
                 float current_str = g_img2img_strength;
                 bool current_cnet = g_use_controlnet;
                 float current_cnet_str = g_controlnet_strength;
                 g_worker_thread = std::thread(
                     RunInferenceWorker,
-                    std::string(g_input_prompt),
-                    g_selected_mode,
+                    prompt_for_worker,
+                    target_mode,
                     g_selected_llm,
                     g_selected_photo,
                     g_num_threads,
@@ -3530,6 +3720,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             "Prompt berjalan apa adanya tanpa koreksi anatomi otomatis (rawan muka buram di foto Full Body).",
             "SANGAT DIREKOMENDASIKAN SELALU AKTIF (ON) terutama untuk pose berdiri / Full Body."
         );
+
+        if (!g_has_attached_doc) {
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+
+            if (ImGui::Button("📄 Lampirkan File", ImVec2(130, 24))) {
+                std::string chosen = OpenDocumentFileDialog(g_hMainWnd);
+                if (!chosen.empty()) {
+                    AttachDocument(chosen.c_str());
+                }
+            }
+            HelpBadge(
+                "Lampirkan File / Dokumen",
+                "Memilih dokumen teks, file data, atau source code dari laptop Anda untuk dibaca dan dianalisis oleh AI.\nFormat didukung: .txt, .pdf, .md, .csv, .json, .py, .c, .cpp, .log, dll.\nAnda juga bisa langsung Drag & Drop file ke dalam aplikasi!",
+                "AI akan membaca isi dokumen, lalu merangkum, mencari informasi, atau menjawab pertanyaan Anda mengenai dokumen tersebut.",
+                "Sangat berguna untuk membaca skripsi, menganalisis data laporan, mereview coding, atau mengekstrak isi teks."
+            );
+        }
 
         if (!g_has_init_image) {
             ImGui::SameLine();
@@ -4013,8 +4222,14 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     g_is_importing = false;
                     g_import_progress = 0.0f;
                     g_import_status_text = "";
-                } else {
+                } else if (lower_path.find(".png") != std::string::npos ||
+                           lower_path.find(".jpg") != std::string::npos ||
+                           lower_path.find(".jpeg") != std::string::npos ||
+                           lower_path.find(".webp") != std::string::npos ||
+                           lower_path.find(".bmp") != std::string::npos) {
                     SetInitImage(droppedFile);
+                } else {
+                    AttachDocument(droppedFile);
                 }
             }
             DragFinish(hDrop);
