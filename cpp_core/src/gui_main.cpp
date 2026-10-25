@@ -79,6 +79,8 @@ static char g_negative_prompt[1024] = "bad anatomy, deformed, mutated, extra lim
 // Acceleration Controls
 static bool g_use_fast_vae = true; // Gunakan TAESD (~2 detik vs 61 detik di CPU)
 static bool g_turbo_mode = false;  // Mode Turbo LCM 4-Step (Off secara default untuk foto DSLR 20-step paling tajam)
+static bool g_use_realism_lora = true; // LoRA Detail Kulit & Realisme Alami (add_detail)
+static float g_realism_lora_strength = 0.75f;
 static bool g_smart_prompt_auto = true; // ✨ Otomatis perluas ide singkat menjadi prompt fotorealistis AI
 static std::atomic<bool> g_is_optimizing_prompt(false);
 static std::thread g_optimize_thread;
@@ -1930,14 +1932,30 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
             }
         }
         float actual_cfg = cfg;
-        std::string lora_arg = "";
+        std::string lora_dir_arg = "";
+        if (GetFileAttributesA("models\\LoRA") != INVALID_FILE_ATTRIBUTES) {
+            lora_dir_arg = "--lora-model-dir \"models\\LoRA\"";
+        }
+
+        std::string final_safe_prompt = safe_prompt;
 
         if (g_turbo_mode || model_path.find("LCM") != std::string::npos || model_path.find("lcm") != std::string::npos) {
             actual_steps = 4;
             actual_cfg = 1.8f;
             // Jika model standar SD 1.5 dijalankan di mode Turbo, lampirkan LoRA LCM agar proses 4-step tajam
             if (model_path.find("LCM") == std::string::npos && model_path.find("lcm") == std::string::npos && GetFileAttributesA("models\\LoRA\\lcm_lora_sd15.safetensors") != INVALID_FILE_ATTRIBUTES) {
-                lora_arg = "--lora \"models\\LoRA\\lcm_lora_sd15.safetensors\"";
+                if (final_safe_prompt.find("lcm_lora_sd15") == std::string::npos) {
+                    final_safe_prompt += " <lora:lcm_lora_sd15:1.0>";
+                }
+            }
+        }
+
+        // LoRA Realisme Kulit & Wajah Alami (add_detail)
+        if (g_use_realism_lora && GetFileAttributesA("models\\LoRA\\add_detail.safetensors") != INVALID_FILE_ATTRIBUTES) {
+            if (final_safe_prompt.find("add_detail") == std::string::npos) {
+                char lbuf[64];
+                snprintf(lbuf, sizeof(lbuf), " <lora:add_detail:%.2f>", g_realism_lora_strength);
+                final_safe_prompt += lbuf;
             }
         }
 
@@ -1999,17 +2017,19 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
             snprintf(cmd, sizeof(cmd),
                 "sd_bin\\sd-cli.exe --diffusion-model \"%s\" --llm \"%s\" --vae \"%s\" %s %s %s -p \"%s\" --steps %d -W %d -H %d -t %d --cfg-scale %.1f -s %d -o \"%s\"",
                 model_path.c_str(), text_enc.c_str(), vae_path.c_str(), backend_arg.c_str(), controlnet_arg.c_str(), img2img_arg.c_str(),
-                safe_prompt.c_str(), actual_steps, out_w, out_h, num_threads, actual_cfg, seed_val, out_img_path.c_str()
+                final_safe_prompt.c_str(), actual_steps, out_w, out_h, num_threads, actual_cfg, seed_val, out_img_path.c_str()
             );
         } else {
-            std::string taesd_arg = "";
+            std::string vae_arg = "";
             if (g_use_fast_vae && GetFileAttributesA("models\\VAE\\taesd.safetensors") != INVALID_FILE_ATTRIBUTES) {
-                taesd_arg = "--taesd \"models\\VAE\\taesd.safetensors\"";
+                vae_arg = "--taesd \"models\\VAE\\taesd.safetensors\"";
+            } else if (GetFileAttributesA("models\\VAE\\vae-ft-mse-840000-ema-pruned.safetensors") != INVALID_FILE_ATTRIBUTES) {
+                vae_arg = "--vae \"models\\VAE\\vae-ft-mse-840000-ema-pruned.safetensors\"";
             }
 
             snprintf(cmd, sizeof(cmd),
                 "sd_bin\\sd-cli.exe -m \"%s\" %s %s %s %s %s -p \"%s\" --negative-prompt \"%s\" --steps %d -W %d -H %d -t %d --cfg-scale %.1f -s %d --sampling-method %s -o \"%s\"",
-                model_path.c_str(), backend_arg.c_str(), taesd_arg.c_str(), lora_arg.c_str(), controlnet_arg.c_str(), img2img_arg.c_str(), safe_prompt.c_str(), safe_neg.c_str(), actual_steps, out_w, out_h, num_threads, actual_cfg, seed_val, sampler_flag, out_img_path.c_str()
+                model_path.c_str(), backend_arg.c_str(), vae_arg.c_str(), lora_dir_arg.c_str(), controlnet_arg.c_str(), img2img_arg.c_str(), final_safe_prompt.c_str(), safe_neg.c_str(), actual_steps, out_w, out_h, num_threads, actual_cfg, seed_val, sampler_flag, out_img_path.c_str()
             );
         }
     } else {
@@ -3216,6 +3236,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 "NON-AKTIFKAN (OFF) jika Anda ingin hasil fotorealistis terbaik sekelas majalah/DSLR pada model CyberRealistic V5. AKTIFKAN jika butuh hasil cepat dalam hitungan detik."
             );
 
+            ImGui::SameLine();
+            ImGui::Checkbox("LoRA Realism", &g_use_realism_lora);
+            HelpBadge(
+                "LoRA Realism (Detail Kulit & Wajah Alami)",
+                "Otomatis menyertakan LoRA add_detail (bobot 0.75) untuk tekstur pori-pori kulit, iris mata jernih, dan bayangan tubuh alami tanpa efek plastik.",
+                "Tidak menggunakan LoRA detail tambahan.",
+                "Sangat direkomendasikan selalu AKTIF untuk potret manusia dan mode NSFW realistis."
+            );
+
             ImGui::EndChild(); // NsfwSubNavbar
             ImGui::PopStyleColor(2);
         } else if (g_selected_mode == 2) {
@@ -3296,6 +3325,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 "Generasi kilat hanya 4 langkah (~3-5 detik).",
                 "Generasi penuh 20-30 langkah DSLR paling tajam & realistis.",
                 "NON-AKTIFKAN (OFF) untuk kualitas foto DSLR terbaik sekelas CyberRealistic V5."
+            );
+
+            ImGui::SameLine();
+            ImGui::Checkbox("LoRA Realism", &g_use_realism_lora);
+            HelpBadge(
+                "LoRA Realism (Detail Kulit & Wajah Alami)",
+                "Otomatis menyertakan LoRA add_detail (bobot 0.75) untuk tekstur pori-pori kulit dan iris mata alami.",
+                "Tidak menggunakan LoRA detail tambahan.",
+                "Sangat direkomendasikan selalu AKTIF untuk foto potret manusia."
             );
 
             ImGui::EndChild(); // PhotoSubNavbar
