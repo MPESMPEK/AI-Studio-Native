@@ -368,6 +368,125 @@ void ClearAttachedDocument() {
     g_attached_doc_lines = 0;
 }
 
+static std::string ReadArchiveEntryViaTar(const std::string& archivePath, const std::string& entryName, size_t maxBytes = 150000) {
+    char cmd[MAX_PATH + 200];
+    snprintf(cmd, sizeof(cmd), "tar.exe -xf \"%s\" -O \"%s\"", archivePath.c_str(), entryName.c_str());
+    FILE* pipe = _popen(cmd, "rb");
+    if (!pipe) return "";
+    std::string out;
+    char buf[1024];
+    while (size_t n = fread(buf, 1, sizeof(buf), pipe)) {
+        out.append(buf, n);
+        if (out.size() > maxBytes) break;
+    }
+    _pclose(pipe);
+    return out;
+}
+
+static std::string ExtractDocxContent(const std::string& path) {
+    std::string xml = ReadArchiveEntryViaTar(path, "word/document.xml", 200000);
+    if (xml.empty()) return "";
+    std::string text;
+    bool in_tag = false;
+    std::string tag;
+    for (size_t i = 0; i < xml.size(); ++i) {
+        char c = xml[i];
+        if (c == '<') {
+            in_tag = true;
+            tag.clear();
+        } else if (c == '>') {
+            in_tag = false;
+            if (tag == "/w:p" || tag == "w:p") {
+                if (!text.empty() && text.back() != '\n') text += '\n';
+            } else if (tag == "w:tab" || tag == "w:tab/") {
+                text += '\t';
+            }
+        } else {
+            if (in_tag) tag += c;
+            else text += c;
+        }
+    }
+    return text;
+}
+
+static std::string ExtractXlsxContent(const std::string& path) {
+    // 1. Ekstrak shared strings tabel Excel
+    std::string sst_xml = ReadArchiveEntryViaTar(path, "xl/sharedStrings.xml", 150000);
+    std::vector<std::string> sst;
+    if (!sst_xml.empty()) {
+        bool in_t = false;
+        std::string cur_str;
+        for (size_t i = 0; i < sst_xml.size(); ++i) {
+            char c = sst_xml[i];
+            if (c == '<') {
+                std::string ttag;
+                while (i < sst_xml.size() && sst_xml[i] != '>') {
+                    ttag += sst_xml[i++];
+                }
+                if (ttag == "<t" || ttag.rfind("<t ", 0) == 0) {
+                    in_t = true;
+                    cur_str.clear();
+                } else if (ttag == "</t") {
+                    in_t = false;
+                    sst.push_back(cur_str);
+                }
+            } else if (in_t) {
+                cur_str += c;
+            }
+        }
+    }
+
+    // 2. Ekstrak baris dan sel sheet1
+    std::string sheet_xml = ReadArchiveEntryViaTar(path, "xl/worksheets/sheet1.xml", 200000);
+    if (sheet_xml.empty()) return "";
+
+    std::string table = "";
+    std::string cur_cell_type;
+    std::string cur_val;
+    bool in_v = false;
+    bool first_in_row = true;
+
+    for (size_t i = 0; i < sheet_xml.size(); ++i) {
+        char c = sheet_xml[i];
+        if (c == '<') {
+            std::string tag;
+            while (i < sheet_xml.size() && sheet_xml[i] != '>') {
+                tag += sheet_xml[i++];
+            }
+            if (tag.rfind("<c ", 0) == 0) {
+                if (tag.find("t=\"s\"") != std::string::npos) {
+                    cur_cell_type = "s";
+                } else {
+                    cur_cell_type = "";
+                }
+            } else if (tag == "<v") {
+                in_v = true;
+                cur_val.clear();
+            } else if (tag == "</v") {
+                in_v = false;
+                std::string cell_display = cur_val;
+                if (cur_cell_type == "s") {
+                    try {
+                        int idx = std::stoi(cur_val);
+                        if (idx >= 0 && idx < (int)sst.size()) {
+                            cell_display = sst[idx];
+                        }
+                    } catch (...) {}
+                }
+                if (!first_in_row) table += " | ";
+                table += cell_display;
+                first_in_row = false;
+            } else if (tag == "</row") {
+                table += "\n";
+                first_in_row = true;
+            }
+        } else if (in_v) {
+            cur_val += c;
+        }
+    }
+    return table;
+}
+
 bool AttachDocument(const char* path) {
     if (!path || strlen(path) == 0) return false;
     std::ifstream file(path, std::ios::binary);
@@ -395,7 +514,17 @@ bool AttachDocument(const char* path) {
     }
 
     std::string clean_text = "";
-    if (ext == ".pdf") {
+    if (ext == ".docx") {
+        clean_text = ExtractDocxContent(path_str);
+        if (clean_text.empty()) {
+            clean_text = "[Dokumen Word kosong atau tidak dapat diekstrak]";
+        }
+    } else if (ext == ".xlsx") {
+        clean_text = ExtractXlsxContent(path_str);
+        if (clean_text.empty()) {
+            clean_text = "[File Excel kosong atau tidak dapat diekstrak]";
+        }
+    } else if (ext == ".pdf") {
         for (size_t i = 0; i < raw_content.size(); ++i) {
             char c = raw_content[i];
             if ((unsigned char)c >= 32 && (unsigned char)c <= 126) {
@@ -413,8 +542,8 @@ bool AttachDocument(const char* path) {
         }
     }
 
-    if (fsize > MAX_READ_BYTES) {
-        clean_text += "\n\n...[Isi dokumen dipotong karena ukuran melebihi batas baca awal 45 KB]...";
+    if (clean_text.length() > MAX_READ_BYTES) {
+        clean_text = clean_text.substr(0, MAX_READ_BYTES) + "\n\n...[Isi dokumen dipotong karena ukuran melebihi batas 45 KB]...";
     }
 
     int lines = 1;
@@ -444,7 +573,7 @@ std::string OpenDocumentFileDialog(HWND hWnd) {
     ofn.hwndOwner = hWnd;
     ofn.lpstrFile = szFile;
     ofn.nMaxFile = sizeof(szFile);
-    ofn.lpstrFilter = "Semua Dokumen (*.txt;*.md;*.pdf;*.csv;*.json;*.py;*.c;*.cpp;*.log)\0*.txt;*.md;*.pdf;*.csv;*.json;*.py;*.c;*.cpp;*.log;*.h;*.hpp;*.html;*.js;*.bat;*.ini;*.xml;*.yaml\0File Teks (*.txt;*.md;*.log)\0*.txt;*.md;*.log\0Kode Pemrograman (*.c;*.cpp;*.py;*.js;*.html)\0*.c;*.cpp;*.py;*.js;*.html;*.h;*.hpp;*.bat\0File Data (*.csv;*.json;*.xml)\0*.csv;*.json;*.xml\0Semua File (*.*)\0*.*\0";
+    ofn.lpstrFilter = "Semua Dokumen (*.docx;*.xlsx;*.csv;*.pdf;*.txt;*.md)\0*.docx;*.xlsx;*.csv;*.pdf;*.txt;*.md;*.json;*.py;*.c;*.cpp;*.log;*.h;*.hpp;*.html;*.js;*.bat;*.ini;*.xml;*.yaml\0Microsoft Word (*.docx)\0*.docx\0Microsoft Excel (*.xlsx;*.csv)\0*.xlsx;*.csv;*.tsv\0PDF (*.pdf)\0*.pdf\0File Teks (*.txt;*.md;*.log)\0*.txt;*.md;*.log\0Kode Pemrograman (*.c;*.cpp;*.py;*.js)\0*.c;*.cpp;*.py;*.js;*.html;*.h;*.hpp\0Semua File (*.*)\0*.*\0";
     ofn.nFilterIndex = 1;
     ofn.lpstrFileTitle = NULL;
     ofn.nMaxFileTitle = 0;
