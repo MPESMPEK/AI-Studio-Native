@@ -98,11 +98,13 @@ static const char* g_framing_names[] = {
     "Framing: Full Body (35mm)"
 };
 
-// Image-to-Image (Edit Foto) Globals
+// Image-to-Image (Edit Foto) & ControlNet Globals
 static HWND g_hMainWnd = NULL;
 static char g_init_image_path[512] = "";
 static bool g_has_init_image = false;
 static float g_img2img_strength = 0.65f;
+static bool g_use_controlnet = false;
+static float g_controlnet_strength = 0.90f;
 static ID3D11ShaderResourceView* g_init_image_view = NULL;
 static int g_init_image_w = 0;
 static int g_init_image_h = 0;
@@ -1486,11 +1488,15 @@ static std::string CleanLlamaStreamOutput(const std::string& raw) {
     return text;
 }
 
-void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_idx, int num_threads, int steps, float cfg, std::string init_img_path = "", float img_strength = 0.65f) {
+void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_idx, int num_threads, int steps, float cfg, std::string init_img_path = "", float img_strength = 0.65f, bool use_controlnet = false, float cnet_strength = 0.90f) {
     g_process_progress.store(0.05f);
     {
         std::lock_guard<std::mutex> lock(g_status_mutex);
-        g_process_status = !init_img_path.empty() ? "Mempersiapkan Edit Foto (Image-to-Image)..." : "Inisialisasi Pure C++ Engine...";
+        if (!init_img_path.empty()) {
+            g_process_status = use_controlnet ? "Mengekstrak Garis Pose & Inisialisasi ControlNet Canny..." : "Mempersiapkan Edit Foto (Image-to-Image)...";
+        } else {
+            g_process_status = "Inisialisasi Pure C++ Engine...";
+        }
     }
 
     // 1. Deteksi Mode Otomatis jika mode == 0
@@ -1718,11 +1724,20 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
             else safe_neg += c;
         }
 
+        std::string controlnet_arg = "";
         std::string img2img_arg = "";
         if (!init_img_path.empty() && GetFileAttributesA(init_img_path.c_str()) != INVALID_FILE_ATTRIBUTES) {
-            char buf[600];
-            snprintf(buf, sizeof(buf), "-i \"%s\" --strength %.2f", init_img_path.c_str(), img_strength);
-            img2img_arg = buf;
+            std::string cnet_model = "models\\ControlNet\\control_sd15_canny.safetensors";
+            if (use_controlnet && GetFileAttributesA(cnet_model.c_str()) != INVALID_FILE_ATTRIBUTES) {
+                char cbuf[700];
+                snprintf(cbuf, sizeof(cbuf), "--control-net \"%s\" --control-image \"%s\" --image-preprocess target=control,canny=true --control-strength %.2f",
+                    cnet_model.c_str(), init_img_path.c_str(), cnet_strength);
+                controlnet_arg = cbuf;
+            } else {
+                char buf[600];
+                snprintf(buf, sizeof(buf), "-i \"%s\" --strength %.2f", init_img_path.c_str(), img_strength);
+                img2img_arg = buf;
+            }
         }
 
         bool is_rtx_active = (g_hardware_backend_mode == 2 || (g_hardware_backend_mode == 0 && g_hw_profile.has_nvidia_gpu));
@@ -1744,8 +1759,8 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
             std::string vae_path = "models\\VAE\\qwen_image_2.1_vae_bf16.safetensors";
 
             snprintf(cmd, sizeof(cmd),
-                "sd_bin\\sd-cli.exe --diffusion-model \"%s\" --llm \"%s\" --vae \"%s\" %s %s -p \"%s\" --steps %d -W %d -H %d -t %d --cfg-scale %.1f -s %d -o \"%s\"",
-                model_path.c_str(), text_enc.c_str(), vae_path.c_str(), backend_arg.c_str(), img2img_arg.c_str(),
+                "sd_bin\\sd-cli.exe --diffusion-model \"%s\" --llm \"%s\" --vae \"%s\" %s %s %s -p \"%s\" --steps %d -W %d -H %d -t %d --cfg-scale %.1f -s %d -o \"%s\"",
+                model_path.c_str(), text_enc.c_str(), vae_path.c_str(), backend_arg.c_str(), controlnet_arg.c_str(), img2img_arg.c_str(),
                 safe_prompt.c_str(), actual_steps, out_w, out_h, num_threads, actual_cfg, seed_val, out_img_path.c_str()
             );
         } else {
@@ -1755,8 +1770,8 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
             }
 
             snprintf(cmd, sizeof(cmd),
-                "sd_bin\\sd-cli.exe -m \"%s\" %s %s %s %s -p \"%s\" --negative-prompt \"%s\" --steps %d -W %d -H %d -t %d --cfg-scale %.1f -s %d --sampling-method %s -o \"%s\"",
-                model_path.c_str(), backend_arg.c_str(), taesd_arg.c_str(), lora_arg.c_str(), img2img_arg.c_str(), safe_prompt.c_str(), safe_neg.c_str(), actual_steps, out_w, out_h, num_threads, actual_cfg, seed_val, sampler_flag, out_img_path.c_str()
+                "sd_bin\\sd-cli.exe -m \"%s\" %s %s %s %s %s -p \"%s\" --negative-prompt \"%s\" --steps %d -W %d -H %d -t %d --cfg-scale %.1f -s %d --sampling-method %s -o \"%s\"",
+                model_path.c_str(), backend_arg.c_str(), taesd_arg.c_str(), lora_arg.c_str(), controlnet_arg.c_str(), img2img_arg.c_str(), safe_prompt.c_str(), safe_neg.c_str(), actual_steps, out_w, out_h, num_threads, actual_cfg, seed_val, sampler_flag, out_img_path.c_str()
             );
         }
     } else {
@@ -3108,7 +3123,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         }
 
         // B. CHAT CANVAS (Scrollable Area)
-        float input_area_h = g_has_init_image ? 148.0f : 92.0f;
+        float input_area_h = g_has_init_image ? 172.0f : 92.0f;
         float chat_canvas_h = app_height - 42.0f - subbar_h - input_area_h - 32.0f;
         if (chat_canvas_h < 120.0f) chat_canvas_h = 120.0f;
 
@@ -3247,43 +3262,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // C. BOTTOM INPUT AREA (Hanya di Kolom Kanan)
         ImGui::BeginChild("BottomInput", ImVec2(right_panel_width, input_area_h), false, ImGuiWindowFlags_NoScrollbar);
 
-        // Preview Foto Awal jika sedang mode Edit Foto (Image-to-Image)
+        // Preview Foto Awal jika sedang mode Edit Foto (Image-to-Image) / ControlNet
         if (g_has_init_image) {
             ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.12f, 0.16f, 0.24f, 0.90f));
             ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.28f, 0.55f, 0.85f, 0.70f));
             ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 6.0f);
-            ImGui::BeginChild("InitImageCard", ImVec2(right_panel_width - 12.0f, 48), true, ImGuiWindowFlags_NoScrollbar);
+            ImGui::BeginChild("InitImageCard", ImVec2(right_panel_width - 12.0f, 72.0f), true, ImGuiWindowFlags_NoScrollbar);
 
+            // Baris 1: Thumbnail, Info Foto, Tombol Ganti, Tombol Batal
             if (g_init_image_view) {
-                ImGui::Image((void*)g_init_image_view, ImVec2(36, 36));
+                ImGui::Image((void*)g_init_image_view, ImVec2(30, 30));
                 ImGui::SameLine();
             }
 
             std::string fname = g_init_image_path;
             size_t slash = fname.find_last_of("\\/");
             if (slash != std::string::npos) fname = fname.substr(slash + 1);
-            if (fname.length() > 20) fname = fname.substr(0, 17) + "...";
+            if (fname.length() > 24) fname = fname.substr(0, 21) + "...";
 
             ImGui::AlignTextToFramePadding();
-            ImGui::TextColored(ImVec4(0.38f, 0.85f, 0.98f, 1.0f), "FOTO: %s", fname.c_str());
+            ImGui::TextColored(ImVec4(0.38f, 0.85f, 0.98f, 1.0f), "FOTO ACUAN: %s", fname.c_str());
             ImGui::SameLine();
             ImGui::TextDisabled("|");
             ImGui::SameLine();
 
-            ImGui::SetNextItemWidth(140.0f);
-            ImGui::SliderFloat("Kekuatan Edit##ImgStrength", &g_img2img_strength, 0.10f, 0.95f, "%.2f");
-            HelpBadge(
-                "Kekuatan Edit (Denoising Strength)",
-                "Menentukan seberapa drastis AI mengubah foto asal:\n- 0.20 - 0.40 (Halus): Bentuk wajah, pose, dan rincian asli dipertahankan 90%. Hanya memoles warna/pencahayaan.\n- 0.50 - 0.65 (Seimbang): Pakaian, rambut, atau latar belakang berganti rapi sesuai prompt, sementara wajah & pose tetap mirip.\n- 0.75 - 0.95 (Drastis): AI bebas merombak total gambar Anda menjadi karya baru.",
-                "Hanya relevan saat mode Edit Foto (Image-to-Image) aktif.",
-                "Gunakan 0.60 - 0.65 untuk hasil ganti pakaian atau ganti latar belakang terbaik."
-            );
-
-            ImGui::SameLine();
-            ImGui::TextDisabled("|");
-            ImGui::SameLine();
-
-            if (ImGui::Button("Ganti Foto", ImVec2(80, 26))) {
+            if (ImGui::Button("Ganti Foto", ImVec2(80, 24))) {
                 std::string chosen = OpenImageFileDialog(g_hMainWnd);
                 if (!chosen.empty()) {
                     SetInitImage(chosen.c_str());
@@ -3294,10 +3297,46 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.60f, 0.15f, 0.15f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.80f, 0.20f, 0.20f, 1.0f));
-            if (ImGui::Button("Batal ❌", ImVec2(75, 26))) {
+            if (ImGui::Button("Batal ❌", ImVec2(75, 24))) {
                 ClearInitImage();
             }
             ImGui::PopStyleColor(2);
+
+            // Baris 2: Mode ControlNet vs Img2Img
+            bool cnet_available = (GetFileAttributesA("models\\ControlNet\\control_sd15_canny.safetensors") != INVALID_FILE_ATTRIBUTES);
+            if (cnet_available) {
+                ImGui::Checkbox("Kunci Pose Presisi (ControlNet Canny)", &g_use_controlnet);
+                HelpBadge(
+                    "Kunci Pose Presisi (ControlNet Canny)",
+                    "Mengekstrak kontur garis tubuh & anatomi secara otomatis (Canny Edge).\nAI dipaksa 100% mengikuti pose acuan tanpa meleset sedikitpun, sementara tekstur tubuh, pakaian, dan pencahayaan dirender baru sesuai prompt Anda.",
+                    "Sangat direkomendasikan untuk ganti pakaian, cosplay, pose realistis, atau konten NSFW dengan pose yang tetap sama persis.",
+                    "Bekerja optimal pada model SD1.5 & CyberRealistic V5.0."
+                );
+                ImGui::SameLine();
+                ImGui::TextDisabled("|");
+                ImGui::SameLine();
+            } else {
+                g_use_controlnet = false;
+            }
+
+            if (g_use_controlnet) {
+                ImGui::SetNextItemWidth(140.0f);
+                ImGui::SliderFloat("Kekuatan Pose##CNetStrength", &g_controlnet_strength, 0.30f, 1.00f, "%.2f");
+                HelpBadgeSimple(
+                    "Kekuatan Pose ControlNet",
+                    "Menentukan seberapa ketat AI harus mematuhi garis tepi pose foto acuan.",
+                    "Nilai 0.90 - 1.00 mengunci pose 100% presisi tanpa meleset."
+                );
+            } else {
+                ImGui::SetNextItemWidth(140.0f);
+                ImGui::SliderFloat("Kekuatan Edit##ImgStrength", &g_img2img_strength, 0.10f, 0.95f, "%.2f");
+                HelpBadge(
+                    "Kekuatan Edit (Denoising Strength)",
+                    "Menentukan seberapa drastis AI mengubah foto asal:\n- 0.20 - 0.40 (Halus): Bentuk wajah, pose, dan rincian asli dipertahankan 90%. Hanya memoles warna/pencahayaan.\n- 0.50 - 0.65 (Seimbang): Pakaian, rambut, atau latar belakang berganti rapi sesuai prompt, sementara wajah & pose tetap mirip.\n- 0.75 - 0.95 (Drastis): AI bebas merombak total gambar Anda menjadi karya baru.",
+                    "Hanya relevan saat mode Edit Foto (Image-to-Image) aktif.",
+                    "Gunakan 0.60 - 0.65 untuk hasil ganti pakaian atau ganti latar belakang terbaik."
+                );
+            }
 
             ImGui::EndChild();
             ImGui::PopStyleVar();
@@ -3381,7 +3420,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 userMsg.text = g_input_prompt;
                 userMsg.timestamp = GetCurrentTimestamp();
                 if (g_has_init_image) {
-                    userMsg.tag = "Anda (Edit Foto)";
+                    userMsg.tag = g_use_controlnet ? "Anda (ControlNet Pose)" : "Anda (Edit Foto)";
                     userMsg.image_path = g_init_image_path;
                     int uw = 0, uh = 0;
                     userMsg.texture_view = LoadTextureFromFileDX11(g_pd3dDevice, g_init_image_path, &uw, &uh);
@@ -3417,7 +3456,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 }
                 {
                     std::lock_guard<std::mutex> lock(g_status_mutex);
-                    g_process_status = g_has_init_image ? "Mempersiapkan Edit Foto (Image-to-Image)..." : ((g_selected_mode == 2 || g_selected_mode == 3) ? "Mempersiapkan model foto C++..." : (g_selected_mode == 5) ? "Mempersiapkan Asisten Suara C++..." : "Mempersiapkan model LLM C++...");
+                    g_process_status = g_has_init_image ? (g_use_controlnet ? "Mempersiapkan Kunci Pose (ControlNet Canny)..." : "Mempersiapkan Edit Foto (Image-to-Image)...") : ((g_selected_mode == 2 || g_selected_mode == 3) ? "Mempersiapkan model foto C++..." : (g_selected_mode == 5) ? "Mempersiapkan Asisten Suara C++..." : "Mempersiapkan model LLM C++...");
                 }
 
                 if (g_worker_thread.joinable()) {
@@ -3425,6 +3464,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 }
                 std::string current_init = g_has_init_image ? g_init_image_path : "";
                 float current_str = g_img2img_strength;
+                bool current_cnet = g_use_controlnet;
+                float current_cnet_str = g_controlnet_strength;
                 g_worker_thread = std::thread(
                     RunInferenceWorker,
                     std::string(g_input_prompt),
@@ -3435,7 +3476,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     g_image_steps,
                     g_cfg_scale,
                     current_init,
-                    current_str
+                    current_str,
+                    current_cnet,
+                    current_cnet_str
                 );
 
                 g_input_prompt[0] = '\0';
