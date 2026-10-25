@@ -2693,78 +2693,108 @@ static void HelpBadgeSimple(const char* title, const char* explanation, const ch
     }
 }
 
-// Render Dashboard Card Hub (Tampilan Modern & Ringan ala Uizard untuk PC)
+static ID3D11ShaderResourceView* g_hub_thumb_photo = NULL;
+static ID3D11ShaderResourceView* g_hub_thumb_nsfw  = NULL;
+static ID3D11ShaderResourceView* g_hub_thumb_voice = NULL;
+static bool g_hub_thumbs_loaded = false;
+
+static void EnsureHubTexturesLoaded() {
+    if (g_hub_thumbs_loaded || !g_pd3dDevice) return;
+    int w = 0, h = 0;
+    if (GetFileAttributesA("outputs\\foto\\img_1792940395.png") != INVALID_FILE_ATTRIBUTES) {
+        g_hub_thumb_photo = LoadTextureFromFileDX11(g_pd3dDevice, "outputs\\foto\\img_1792940395.png", &w, &h);
+    }
+    if (GetFileAttributesA("outputs\\foto\\img_1792940561.png") != INVALID_FILE_ATTRIBUTES) {
+        g_hub_thumb_nsfw = LoadTextureFromFileDX11(g_pd3dDevice, "outputs\\foto\\img_1792940561.png", &w, &h);
+    }
+    if (GetFileAttributesA("outputs\\foto\\img_1792867839.png") != INVALID_FILE_ATTRIBUTES) {
+        g_hub_thumb_voice = LoadTextureFromFileDX11(g_pd3dDevice, "outputs\\foto\\img_1792867839.png", &w, &h);
+    }
+    g_hub_thumbs_loaded = true;
+}
+
+// Render Dashboard Card Hub (Tata Letak Kartu Horizontal Modern Persis Uizard)
 static void RenderDashboardHub(float panel_w, float panel_h) {
+    EnsureHubTexturesLoaded();
+
     ImGui::BeginChild("DashboardHub", ImVec2(panel_w, panel_h), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
-    ImGui::Dummy(ImVec2(0, 8));
+    ImGui::Dummy(ImVec2(0, 6));
 
-    // 1. Header Banner
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.10f, 0.14f, 0.22f, 0.85f));
-    ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.20f, 0.40f, 0.65f, 0.70f));
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18, 14));
+    // Header Title (Persis seperti "Courses" di Uizard)
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16, 10));
+    ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 1.0f), "KATALOG STUDIO & MODE AI");
+    ImGui::TextDisabled("Pilih mode di bawah untuk langsung membuka studio. Pure C++ Native Engine (100%% Offline).");
+    ImGui::PopStyleVar();
 
-    float header_w = panel_w - 20.0f;
-    ImGui::BeginChild("HubHeaderBanner", ImVec2(header_w, 82.0f), true, ImGuiWindowFlags_NoScrollbar);
-    
-    ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 1.0f), "AI STUDIO NATIVE — PURE C++ DIRECTX 11");
-    ImGui::TextColored(ImVec4(0.92f, 0.94f, 0.98f, 1.0f), "Katalog Studio & Mode AI (Pilih salah satu kartu untuk mulai)");
+    ImGui::Spacing();
+    ImGui::Separator();
     ImGui::Spacing();
 
-    // Quick Status Telemetry
-    ImGui::TextColored(ImVec4(0.25f, 0.95f, 0.55f, 1.0f), "[Engine Aktif]");
-    ImGui::SameLine();
-    ImGui::TextDisabled("| 100%% Offline • Privasi Total di Laptop • Bebas Kuota");
-    ImGui::SameLine();
-    double used_gb = (double)(g_telemetry.total_ram_bytes - g_telemetry.free_ram_bytes) / (1024.0 * 1024.0 * 1024.0);
-    double tot_gb  = (double)g_telemetry.total_ram_bytes / (1024.0 * 1024.0 * 1024.0);
-    ImGui::TextDisabled("| RAM: %.1f / %.1f GB", used_gb, tot_gb);
+    float card_w = panel_w - 24.0f;
+    float card_h = 104.0f;
+    float thumb_sz = 80.0f;
+    float btn_w = 120.0f;
 
-    ImGui::EndChild();
-    ImGui::PopStyleVar(2);
-    ImGui::PopStyleColor(2);
-
-    ImGui::Dummy(ImVec2(0, 10));
-
-    // 2. Section Title
-    ImGui::TextColored(ImVec4(0.90f, 0.92f, 0.96f, 1.0f), "Pilih Mode AI di Bawah:");
-    ImGui::Spacing();
-
-    // 3. Grid of Cards (2 Columns jika lebar > 680px, 1 Column jika sempit)
-    bool use_two_cols = (panel_w > 700.0f);
-    float card_w = use_two_cols ? (panel_w - 32.0f) * 0.495f : (panel_w - 20.0f);
-    float card_h = 180.0f;
-
-    auto render_card = [&](const char* id, const char* badge, const char* title, const char* model_desc, const char* bullets, const char* btn_text, int target_mode, ImVec4 accent_col, ImVec4 bg_col, ImVec4 border_col) {
+    auto render_uizard_card = [&](const char* id, ID3D11ShaderResourceView* tex, const char* placeholder_icon, const char* category, const char* title, const char* subtitle, float progress_val, const char* progress_lbl, const char* btn_text, int target_mode, ImVec4 accent_col, ImVec4 bg_col, ImVec4 border_col) {
         ImGui::PushStyleColor(ImGuiCol_ChildBg, bg_col);
         ImGui::PushStyleColor(ImGuiCol_Border,  border_col);
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16, 14));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12, 12));
 
         ImGui::BeginChild(id, ImVec2(card_w, card_h), true, ImGuiWindowFlags_NoScrollbar);
 
-        // Header Row: Badge & Model
-        ImGui::TextColored(accent_col, "%s", badge);
+        // 1. Kolom Kiri: Thumbnail Foto Bulat (Uizard Style)
+        if (tex) {
+            ImGui::Image((void*)tex, ImVec2(thumb_sz, thumb_sz));
+        } else {
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            ImVec2 p0 = ImGui::GetCursorScreenPos();
+            ImVec2 p1 = ImVec2(p0.x + thumb_sz, p0.y + thumb_sz);
+            dl->AddRectFilled(p0, p1, ImColor(accent_col), 10.0f);
+            
+            ImVec2 txt_sz = ImGui::CalcTextSize(placeholder_icon);
+            ImVec2 txt_pos = ImVec2(p0.x + (thumb_sz - txt_sz.x) * 0.5f, p0.y + (thumb_sz - txt_sz.y) * 0.5f);
+            dl->AddText(txt_pos, ImColor(1.0f, 1.0f, 1.0f, 1.0f), placeholder_icon);
+
+            ImGui::Dummy(ImVec2(thumb_sz, thumb_sz));
+        }
+
         ImGui::SameLine();
-        ImGui::TextDisabled("• %s", model_desc);
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10.0f);
 
-        // Title
-        ImGui::Spacing();
-        ImGui::TextColored(ImVec4(0.98f, 0.98f, 1.0f, 1.0f), "%s", title);
-        ImGui::Separator();
-        ImGui::Spacing();
+        // 2. Kolom Tengah: Info Teks & Progress Bar
+        float middle_w = card_w - thumb_sz - btn_w - 48.0f;
+        if (middle_w < 150.0f) middle_w = 150.0f;
 
-        // Bullets / Description
-        ImGui::TextDisabled("%s", bullets);
+        ImGui::BeginGroup();
+        // Category Tag
+        ImGui::TextColored(accent_col, "[ %s ]", category);
+        
+        // Title (Bold & Jelas)
+        ImGui::TextColored(ImVec4(0.96f, 0.98f, 1.0f, 1.0f), "%s", title);
+        
+        // Subtitle / Creator
+        ImGui::TextDisabled("%s", subtitle);
 
-        ImGui::SetCursorPosY(card_h - 40.0f);
+        // Progress Bar (Sama persis seperti progress bar Uizard)
+        float pbar_w = (middle_w > 260.0f) ? 170.0f : 110.0f;
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, accent_col);
+        ImGui::ProgressBar(progress_val, ImVec2(pbar_w, 5), "");
+        ImGui::PopStyleColor();
 
-        // Action Button
+        ImGui::SameLine();
+        ImGui::TextDisabled("%s", progress_lbl);
+        ImGui::EndGroup();
+
+        // 3. Kolom Kanan: Action Button (Buka Studio)
+        ImGui::SameLine(card_w - btn_w - 12.0f);
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 23.0f);
+
         ImGui::PushStyleColor(ImGuiCol_Button, accent_col);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(accent_col.x * 1.15f, accent_col.y * 1.15f, accent_col.z * 1.15f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-        if (ImGui::Button(btn_text, ImVec2(-1, 28))) {
+        if (ImGui::Button(btn_text, ImVec2(btn_w, 34))) {
             g_selected_mode = target_mode;
         }
         ImGui::PopStyleColor(3);
@@ -2774,76 +2804,88 @@ static void RenderDashboardHub(float panel_w, float panel_h) {
         ImGui::PopStyleColor(2);
     };
 
-    // Card 1: Chat Teks & Koding
-    render_card(
+    // Kartu 1: Percakapan Bebas & Koding
+    render_uizard_card(
         "Card_Chat",
-        "💬 PERCAKAPAN & KODING",
-        "Asisten Logika, Coding & Analisis",
-        "DeepSeek-R1 & Qwen 2.5",
-        "• Penalaran logika mendalam & chat bebas sensor\n• Analisis koding C++, Python, Web, Script\n• Membaca file dokumen (.txt, .pdf, .md, .py)",
-        "🚀 Buka Ruang Chat",
+        NULL,
+        "AI CHAT",
+        "TEKS & LOGIKA LLM",
+        "Percakapan Bebas & Koding",
+        "DeepSeek-R1 & Qwen 2.5 • Penalaran Logika & Dokumen",
+        0.95f,
+        "100% Siap (Lokal)",
+        "Buka Chat ->",
         1,
-        ImVec4(0.18f, 0.52f, 0.92f, 0.90f),
+        ImVec4(0.18f, 0.52f, 0.92f, 0.95f),
         ImVec4(0.09f, 0.14f, 0.22f, 0.85f),
         ImVec4(0.20f, 0.40f, 0.70f, 0.70f)
     );
 
-    if (use_two_cols) ImGui::SameLine();
-    else ImGui::Spacing();
+    ImGui::Spacing();
 
-    // Card 2: Generator Foto Realistis
-    render_card(
+    // Kartu 2: Generator Foto Realistis (Dengan Thumbnail Nyata!)
+    render_uizard_card(
         "Card_Photo",
-        "🎨 GENERATOR FOTO",
-        "Studio Potret Fotorealistis DSLR",
-        "CyberRealistic V5.0",
-        "• Potret manusia asli DSLR 85mm & pori kulit mikro\n• Resolusi 512x768 (Full Body) & 512x512\n• HD Wajah & Anatomi anti-muka kabur",
-        "🎨 Buka Studio Foto",
+        g_hub_thumb_photo,
+        "FOTO",
+        "FOTOGRAFI REALISTIS",
+        "Generator Foto Realistis",
+        "CyberRealistic V5.0 • Potret Manusia DSLR 85mm",
+        0.85f,
+        "HD Wajah & Pori Kulit",
+        "Buka Studio ->",
         2,
-        ImVec4(0.12f, 0.65f, 0.50f, 0.90f),
+        ImVec4(0.12f, 0.65f, 0.50f, 0.95f),
         ImVec4(0.08f, 0.16f, 0.15f, 0.85f),
         ImVec4(0.18f, 0.55f, 0.45f, 0.70f)
     );
 
     ImGui::Spacing();
 
-    // Card 3: Studio Dewasa & NSFW
-    render_card(
+    // Kartu 3: Studio Dewasa & NSFW (Dengan Thumbnail Sensual Nyata!)
+    render_uizard_card(
         "Card_NSFW",
-        "🔞 STUDIO DEWASA & SENSUAL",
-        "100% Uncensored Tanpa Filter",
-        "CyberRealistic V5 (Bebas Sensor)",
-        "• Seni sensual, pakaian minim, & fine art\n• 100% tanpa filter moral & tanpa penolakan\n• Kunci pose presisi (ControlNet Canny Edge)",
-        "🔞 Buka Studio Dewasa",
+        g_hub_thumb_nsfw,
+        "18+ NSFW",
+        "100% BEBAS SENSOR",
+        "Studio Dewasa & Sensual",
+        "Fine Art Nude • Kunci Pose ControlNet Canny",
+        0.90f,
+        "100% Bebas Sensor",
+        "Buka Dewasa ->",
         3,
-        ImVec4(0.85f, 0.15f, 0.38f, 0.90f),
+        ImVec4(0.85f, 0.15f, 0.38f, 0.95f),
         ImVec4(0.18f, 0.08f, 0.12f, 0.85f),
         ImVec4(0.65f, 0.18f, 0.32f, 0.70f)
     );
 
-    if (use_two_cols) ImGui::SameLine();
-    else ImGui::Spacing();
+    ImGui::Spacing();
 
-    // Card 4: Asisten Suara AI
-    render_card(
+    // Kartu 4: Asisten Suara AI
+    render_uizard_card(
         "Card_Voice",
-        "🎙️ ASISTEN SUARA AI",
-        "Voice Assistant & Dikte Suara",
-        "Whisper + Windows Speech",
-        "• Dikte suara bahasa Indonesia instan ke teks\n• AI berbicara otomatis menjawab pertanyaan Anda\n• Komputasi lokal kilat tanpa internet",
-        "🎙️ Buka Asisten Suara",
+        g_hub_thumb_voice,
+        "VOICE",
+        "VOICE ASSISTANT",
+        "Asisten Suara AI",
+        "Dikte Suara Bahasa Indonesia & Speech Engine C++",
+        0.70f,
+        "Mikrofon & Audio Aktif",
+        "Buka Suara ->",
         5,
-        ImVec4(0.55f, 0.25f, 0.85f, 0.90f),
+        ImVec4(0.55f, 0.25f, 0.85f, 0.95f),
         ImVec4(0.14f, 0.09f, 0.20f, 0.85f),
         ImVec4(0.45f, 0.22f, 0.68f, 0.70f)
     );
 
-    ImGui::Dummy(ImVec2(0, 16));
-
-    // Footer Info
+    ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::TextDisabled("💡 Tips Cepat: Klik salah satu tombol di atas untuk langsung mulai, atau gunakan navbar di bagian atas untuk beralih mode kapan saja.");
+    ImGui::TextDisabled("Status Hardware: RAM %.1f / %.1f GB | %d Thread CPU | AVX2 + TAESD Fast VAE Active",
+        (double)(g_telemetry.total_ram_bytes - g_telemetry.free_ram_bytes)/(1024.0*1024.0*1024.0),
+        (double)g_telemetry.total_ram_bytes/(1024.0*1024.0*1024.0),
+        g_num_threads
+    );
 
     ImGui::EndChild(); // DashboardHub
 }
@@ -3220,14 +3262,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             float card_w = ImGui::GetContentRegionAvail().x;
             std::string title_disp = g_sessions[t].title;
             if (title_disp.length() > 18) title_disp = title_disp.substr(0, 16) + "..";
-            ImGui::TextColored(selected ? ImVec4(0.45f, 0.85f, 1.0f, 1.0f) : ImVec4(0.90f, 0.92f, 0.96f, 1.0f), "💬 %s", title_disp.c_str());
+            ImGui::TextColored(selected ? ImVec4(0.45f, 0.85f, 1.0f, 1.0f) : ImVec4(0.90f, 0.92f, 0.96f, 1.0f), "# %s", title_disp.c_str());
 
             if (g_sessions.size() > 1) {
                 ImGui::SameLine(card_w - 18.0f);
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.70f, 0.15f, 0.15f, 0.8f));
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.60f, 0.65f, 0.75f, 0.8f));
-                if (ImGui::SmallButton("✕")) {
+                if (ImGui::SmallButton("x")) {
                     DeleteSession((int)t);
                     ImGui::PopStyleColor(3);
                     ImGui::EndChild();
@@ -3269,9 +3311,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             std::string gpu_label = g_hw_profile.gpus.empty() ? "NVIDIA RTX" : g_hw_profile.gpus[g_hw_profile.selected_gpu_idx].name;
             if (gpu_label.length() > 24) gpu_label = gpu_label.substr(0, 22) + "..";
             ImGui::TextColored(ImVec4(0.2f, 0.95f, 0.4f, 1.0f), "GPU: %s", gpu_label.c_str());
-            ImGui::TextDisabled("Akselerasi: CUDA RTX Active 🚀");
+            ImGui::TextDisabled("Akselerasi: CUDA RTX Active");
         } else {
-            ImGui::TextDisabled("CPU: %d Thread | AVX2 + TAESD ⚡", g_num_threads);
+            ImGui::TextDisabled("CPU: %d Thread | AVX2 + TAESD Fast", g_num_threads);
         }
         ImGui::Spacing();
 
@@ -3295,7 +3337,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // A. TOP NAVBAR (Tinggi 42px)
         ImGui::BeginChild("TopNavbar", ImVec2(right_panel_width, 42), true, ImGuiWindowFlags_NoScrollbar);
         
-        static const char* nav_mode_labels[] = { "🏠 Home", "💬 Chat", "🎨 Foto", "🔞 Dewasa", "🎬 Video", "🎙️ Suara" };
+        static const char* nav_mode_labels[] = { "Home", "Chat AI", "Studio Foto", "Dewasa (18+)", "Video AI", "Suara AI" };
 
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 4));
         for (int m = 0; m < 6; m++) {
@@ -3363,7 +3405,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             }
         } else if (g_selected_mode == 0) {
             ImGui::AlignTextToFramePadding();
-            ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 0.95f), "✨ Dashboard Hub");
+            ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 0.95f), "Dashboard Hub");
         } else {
             ImGui::SetNextItemWidth(combo_w);
             if (!g_llm_items.empty()) {
