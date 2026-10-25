@@ -1717,11 +1717,6 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
             else safe_neg += c;
         }
 
-        std::string taesd_arg = "";
-        if (g_use_fast_vae && GetFileAttributesA("models\\VAE\\taesd.safetensors") != INVALID_FILE_ATTRIBUTES) {
-            taesd_arg = "--taesd \"models\\VAE\\taesd.safetensors\"";
-        }
-
         std::string img2img_arg = "";
         if (!init_img_path.empty() && GetFileAttributesA(init_img_path.c_str()) != INVALID_FILE_ATTRIBUTES) {
             char buf[600];
@@ -1735,10 +1730,34 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
             backend_arg = "--backend cuda0 --auto-fit on";
         }
 
-        snprintf(cmd, sizeof(cmd),
-            "sd_bin\\sd-cli.exe -m \"%s\" %s %s %s %s -p \"%s\" --negative-prompt \"%s\" --steps %d -W %d -H %d -t %d --cfg-scale %.1f -s %d --sampling-method %s -o \"%s\"",
-            model_path.c_str(), backend_arg.c_str(), taesd_arg.c_str(), lora_arg.c_str(), img2img_arg.c_str(), safe_prompt.c_str(), safe_neg.c_str(), actual_steps, out_w, out_h, num_threads, actual_cfg, seed_val, sampler_flag, out_img_path.c_str()
-        );
+        bool is_dit = (model_path.find("Sakura") != std::string::npos ||
+                       model_path.find("Iris") != std::string::npos ||
+                       model_path.find("qwen-image") != std::string::npos ||
+                       model_path.find("DiT") != std::string::npos);
+
+        if (is_dit) {
+            std::string text_enc = "models\\Multimodal_Vision\\Sakura-TextEncoder-Qwen3VL-4B-Uncensored-Q4_K_M-2.33GiB.gguf";
+            if (GetFileAttributesA(text_enc.c_str()) == INVALID_FILE_ATTRIBUTES) {
+                text_enc = "models\\Multimodal_Vision\\mmproj-Qwen-Image-2.1-Turbo-Uncensored-F16.gguf";
+            }
+            std::string vae_path = "models\\VAE\\qwen_image_2.1_vae_bf16.safetensors";
+
+            snprintf(cmd, sizeof(cmd),
+                "sd_bin\\sd-cli.exe --diffusion-model \"%s\" --llm \"%s\" --vae \"%s\" %s %s -p \"%s\" --steps %d -W %d -H %d -t %d --cfg-scale %.1f -s %d -o \"%s\"",
+                model_path.c_str(), text_enc.c_str(), vae_path.c_str(), backend_arg.c_str(), img2img_arg.c_str(),
+                safe_prompt.c_str(), actual_steps, out_w, out_h, num_threads, actual_cfg, seed_val, out_img_path.c_str()
+            );
+        } else {
+            std::string taesd_arg = "";
+            if (g_use_fast_vae && GetFileAttributesA("models\\VAE\\taesd.safetensors") != INVALID_FILE_ATTRIBUTES) {
+                taesd_arg = "--taesd \"models\\VAE\\taesd.safetensors\"";
+            }
+
+            snprintf(cmd, sizeof(cmd),
+                "sd_bin\\sd-cli.exe -m \"%s\" %s %s %s %s -p \"%s\" --negative-prompt \"%s\" --steps %d -W %d -H %d -t %d --cfg-scale %.1f -s %d --sampling-method %s -o \"%s\"",
+                model_path.c_str(), backend_arg.c_str(), taesd_arg.c_str(), lora_arg.c_str(), img2img_arg.c_str(), safe_prompt.c_str(), safe_neg.c_str(), actual_steps, out_w, out_h, num_threads, actual_cfg, seed_val, sampler_flag, out_img_path.c_str()
+            );
+        }
     } else {
         // Mode Chat LLM: PURE C++ LLAMA-CLI
         std::string model_path = "models\\Teks_LLM\\qwen2.5-coder-1.5b-instruct-q4_k_m.gguf";
