@@ -1772,22 +1772,54 @@ static std::string GenerateCorrectedPrompt(const std::string& input_idea, int nu
 static std::string CleanLlamaStreamOutput(const std::string& raw) {
     if (raw.empty()) return "";
     std::string text = raw;
-    size_t p_pos = text.find("> ");
-    if (p_pos != std::string::npos) {
-        size_t nl_pos = text.find('\n', p_pos);
-        text = (nl_pos != std::string::npos) ? text.substr(nl_pos + 1) : text.substr(p_pos + 2);
+
+    // 1. Bersihkan banner interaktif llama-cli dan prompt echo
+    size_t last_prompt_arrow = text.rfind("\n> ");
+    if (last_prompt_arrow == std::string::npos && text.rfind("> ") == 0) {
+        last_prompt_arrow = 0;
+    }
+    if (last_prompt_arrow != std::string::npos) {
+        size_t after_arrow = (last_prompt_arrow == 0) ? 2 : last_prompt_arrow + 3;
+        size_t next_nl = text.find('\n', after_arrow);
+        if (next_nl != std::string::npos) {
+            text = text.substr(next_nl + 1);
+        } else {
+            text = "";
+        }
     } else {
-        size_t cmd_pos = text.find("using globbing pattern");
-        if (cmd_pos != std::string::npos) {
-            text = text.substr(cmd_pos + 22);
+        size_t glob_pos = text.find("using globbing pattern");
+        if (glob_pos != std::string::npos) {
+            size_t next_nl = text.find('\n', glob_pos);
+            if (next_nl != std::string::npos) {
+                text = text.substr(next_nl + 1);
+            }
         }
     }
+
+    // 2. Potong statistik prompt akhir dan pesan exit
     size_t stats_pos = text.find("[ Prompt:");
     if (stats_pos != std::string::npos) text = text.substr(0, stats_pos);
     size_t exit_pos = text.find("Exiting...");
     if (exit_pos != std::string::npos) text = text.substr(0, exit_pos);
+    size_t eot_pos = text.find("<|im_end|>");
+    if (eot_pos != std::string::npos) text = text.substr(0, eot_pos);
+    size_t eos_pos = text.find("<|endoftext|>");
+    if (eos_pos != std::string::npos) text = text.substr(0, eos_pos);
 
-    while (!text.empty() && (text.front() == '\n' || text.front() == '\r')) {
+    // 3. Format rapi pemikiran DeepSeek-R1
+    auto replace_all = [](std::string& str, const std::string& from, const std::string& to) {
+        size_t pos = 0;
+        while ((pos = str.find(from, pos)) != std::string::npos) {
+            str.replace(pos, from.length(), to);
+            pos += to.length();
+        }
+    };
+    replace_all(text, "<think>", "💭 [Pemikiran Logika DeepSeek]:\n");
+    replace_all(text, "</think>", "\n\n💡 [Jawaban]:\n");
+    replace_all(text, "[Start thinking]", "💭 [Pemikiran Logika DeepSeek]:\n");
+    replace_all(text, "[End thinking]", "\n\n💡 [Jawaban]:\n");
+
+    while (!text.empty() && (text.front() == '\n' || text.front() == '\r' || text.front() == ' ' || text.front() == '\t')) {
         text.erase(text.begin());
     }
     return text;
@@ -2279,40 +2311,10 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
                 g_worker_result = "Gagal menyimpan foto. Log engine:\n" + full_output.substr(0, 500);
             }
         } else {
-            std::string clean_resp = "";
-            size_t p_pos = full_output.find("> ");
-            if (p_pos != std::string::npos) {
-                size_t nl_pos = full_output.find('\n', p_pos);
-                if (nl_pos != std::string::npos) {
-                    clean_resp = full_output.substr(nl_pos + 1);
-                } else {
-                    clean_resp = full_output.substr(p_pos + 2);
-                }
-            } else {
-                size_t cmd_pos = full_output.find("using globbing pattern");
-                if (cmd_pos != std::string::npos) {
-                    clean_resp = full_output.substr(cmd_pos + 22);
-                } else {
-                    clean_resp = full_output;
-                }
-            }
-
-            size_t stats_pos = clean_resp.find("[ Prompt:");
-            if (stats_pos != std::string::npos) {
-                clean_resp = clean_resp.substr(0, stats_pos);
-            }
-            size_t exit_pos = clean_resp.find("Exiting...");
-            if (exit_pos != std::string::npos) {
-                clean_resp = clean_resp.substr(0, exit_pos);
-            }
-
-            while (!clean_resp.empty() && (clean_resp.front() == '\n' || clean_resp.front() == '\r' || clean_resp.front() == ' ' || clean_resp.front() == '\t')) {
-                clean_resp.erase(clean_resp.begin());
-            }
+            std::string clean_resp = CleanLlamaStreamOutput(full_output);
             while (!clean_resp.empty() && (clean_resp.back() == '\n' || clean_resp.back() == '\r' || clean_resp.back() == ' ' || clean_resp.back() == '\t')) {
                 clean_resp.pop_back();
             }
-
             if (clean_resp.empty()) {
                 clean_resp = full_output;
             }
@@ -3054,34 +3056,36 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 6));
 
             std::string card_name = "SessionCard_" + std::to_string(t);
-            ImGui::BeginChild(card_name.c_str(), ImVec2(-1, 46), true, ImGuiWindowFlags_NoScrollbar);
+            ImGui::BeginChild(card_name.c_str(), ImVec2(-1, 52), true, ImGuiWindowFlags_NoScrollbar);
 
             if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0)) {
                 g_active_session_idx = (int)t;
             }
 
+            float card_w = ImGui::GetContentRegionAvail().x;
             std::string title_disp = g_sessions[t].title;
-            if (title_disp.length() > 20) title_disp = title_disp.substr(0, 17) + "...";
+            if (title_disp.length() > 18) title_disp = title_disp.substr(0, 16) + "..";
             ImGui::TextColored(selected ? ImVec4(0.45f, 0.85f, 1.0f, 1.0f) : ImVec4(0.90f, 0.92f, 0.96f, 1.0f), "💬 %s", title_disp.c_str());
 
-            int msg_count = (int)g_sessions[t].messages.size();
-            ImGui::TextDisabled("%d pesan • %s", msg_count, g_sessions[t].last_time.c_str());
-
             if (g_sessions.size() > 1) {
-                ImGui::SameLine(sidebar_width - 64.0f);
+                ImGui::SameLine(card_w - 18.0f);
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.70f, 0.15f, 0.15f, 0.8f));
-                if (ImGui::SmallButton("❌")) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.60f, 0.65f, 0.75f, 0.8f));
+                if (ImGui::SmallButton("✕")) {
                     DeleteSession((int)t);
-                    ImGui::PopStyleColor(2);
+                    ImGui::PopStyleColor(3);
                     ImGui::EndChild();
                     ImGui::PopStyleVar(2);
                     ImGui::PopStyleColor(2);
                     ImGui::PopID();
                     break;
                 }
-                ImGui::PopStyleColor(2);
+                ImGui::PopStyleColor(3);
             }
+
+            int msg_count = (int)g_sessions[t].messages.size();
+            ImGui::TextDisabled("%d pesan • %s", msg_count, g_sessions[t].last_time.c_str());
 
             ImGui::EndChild();
             ImGui::PopStyleVar(2);
@@ -3136,10 +3140,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // A. TOP NAVBAR (Tinggi 42px)
         ImGui::BeginChild("TopNavbar", ImVec2(right_panel_width, 42), true, ImGuiWindowFlags_NoScrollbar);
         
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("Mode:");
-        ImGui::SameLine();
+        static const char* nav_mode_labels[] = { "🤖 Auto", "💬 Chat", "🎨 Foto", "🔞 Dewasa", "🎬 Video", "🎙️ Suara" };
 
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 4));
         for (int m = 0; m < 6; m++) {
             if (m > 0) ImGui::SameLine();
             bool is_active = (g_selected_mode == m);
@@ -3170,36 +3173,42 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.15f, 0.20f, 0.30f, 1.0f));
                 }
             }
-            if (ImGui::Button(g_mode_names[m], ImVec2(0, 26))) {
+            if (ImGui::Button(nav_mode_labels[m], ImVec2(0, 26))) {
                 g_selected_mode = m;
             }
             ImGui::PopStyleColor(2);
         }
+        ImGui::PopStyleVar();
 
         ImGui::SameLine();
         ImGui::TextDisabled("|");
         ImGui::SameLine();
 
+        float remaining_nav_w = ImGui::GetContentRegionAvail().x;
+        float combo_w = remaining_nav_w - 74.0f;
+        if (combo_w > 220.0f) combo_w = 220.0f;
+        if (combo_w < 110.0f) combo_w = 110.0f;
+
         if (g_selected_mode == 2 || g_selected_mode == 3) {
-            ImGui::Text(g_selected_mode == 3 ? "Model NSFW:" : "Model Foto:");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(240);
+            ImGui::SetNextItemWidth(combo_w);
             if (!g_photo_items.empty()) {
                 ImGui::Combo("##PhotoCombo", &g_selected_photo, g_photo_items.data(), (int)g_photo_items.size());
             }
-            HelpBadgePhotoModels(g_selected_photo);
+            if (ImGui::IsItemHovered() && !g_photo_items.empty() && g_selected_photo < (int)g_photo_items.size()) {
+                ImGui::SetTooltip("Model Difusi Aktif: %s", g_photo_items[g_selected_photo]);
+            }
         } else {
-            ImGui::Text("Model Chat:");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(240);
+            ImGui::SetNextItemWidth(combo_w);
             if (!g_llm_items.empty()) {
                 ImGui::Combo("##LLMCombo", &g_selected_llm, g_llm_items.data(), (int)g_llm_items.size());
             }
-            HelpBadgeLlmModels(g_selected_llm);
+            if (ImGui::IsItemHovered() && !g_llm_items.empty() && g_selected_llm < (int)g_llm_items.size()) {
+                ImGui::SetTooltip("Model Chat Aktif: %s", g_llm_items[g_selected_llm]);
+            }
         }
 
         ImGui::SameLine();
-        if (ImGui::Button("+ GGUF", ImVec2(58, 26))) {
+        if (ImGui::Button("+ Model", ImVec2(62, 26))) {
             std::string chosen = OpenModelFileDialog(g_hMainWnd);
             if (!chosen.empty()) {
                 g_current_inspection = InspectModelFile(chosen);
@@ -3209,21 +3218,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 g_import_status_text = "";
             }
         }
-        HelpBadge(
-            "Import Model AI (.GGUF / .safetensors)",
-            "Menambah model baru secara instan: pilih file .gguf dari folder laptop Anda, sistem akan otomatis membaca arsitektur model, mengecek kelengkapan VAE, lalu mengaktifkannya.",
-            "Menyalin file secara manual melalui Windows Explorer.",
-            "Tips Cepat: Anda juga bisa langsung men-drag & drop file .gguf ke dalam jendela aplikasi ini kapan saja!"
-        );
-
-        ImGui::SameLine();
-        ImGui::Checkbox("Web", &g_search_internet);
-        HelpBadge(
-            "Pencarian Web Otomatis",
-            "AI akan mencari informasi online terkini dari internet sebelum menjawab pertanyaan Anda.",
-            "AI berjalan 100% OFFLINE tanpa menyentuh internet. Menjawab murni dari data lokal model LLM (lebih cepat & privasi aman).",
-            "AKTIFKAN jika menanyakan informasi/berita terbaru. NON-AKTIFKAN untuk koding, percakapan umum, atau mode offline."
-        );
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Pasang Model .GGUF / .safetensors baru dari laptop Anda");
+        }
 
         ImGui::EndChild(); // TopNavbar
 
@@ -3754,8 +3751,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             ImGui::Spacing();
         }
 
-        float send_btn_w = 95.0f;
-        float smart_btn_w = 145.0f;
+        float send_btn_w = 85.0f;
+        float smart_btn_w = 0.0f;
+        if (g_selected_mode == 2 || g_selected_mode == 3) {
+            smart_btn_w = 135.0f;
+        } else {
+            smart_btn_w = 95.0f;
+        }
+
         float input_text_w = right_panel_width - send_btn_w - smart_btn_w - 28.0f;
         if (input_text_w < 220.0f) {
             input_text_w = right_panel_width - send_btn_w - 18.0f;
@@ -3771,20 +3774,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         ImGui::SameLine();
 
-        // Tombol Input Ekstra (✨ Prompt Pintar untuk Foto, atau 🎙️ Bicara untuk Suara AI)
+        // Tombol Input Tambahan (✨ Prompt Pintar untuk Foto, atau 🎙️ Bicara untuk Chat & Suara)
         if (smart_btn_w > 0.0f) {
-            if (g_selected_mode == 5) {
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.08f, 0.55f, 0.45f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.12f, 0.70f, 0.58f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.05f, 0.42f, 0.35f, 1.0f));
-                if (ImGui::Button("🎙️ Bicara", ImVec2(smart_btn_w, 52))) {
-                    TriggerWindowsVoiceTyping();
-                }
-                if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("Aktifkan Mikrofon: Bicara dalam Bahasa Indonesia, kata-kata Anda akan otomatis diketik ke kolom pesan!");
-                }
-                ImGui::PopStyleColor(3);
-            } else {
+            if (g_selected_mode == 2 || g_selected_mode == 3) {
                 if (g_is_optimizing_prompt.load()) {
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.35f, 0.20f, 0.55f, 1.0f));
                     ImGui::Button("✨ Berpikir...", ImVec2(smart_btn_w, 52));
@@ -3811,10 +3803,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                         }
                     }
                     if (ImGui::IsItemHovered()) {
-                        ImGui::SetTooltip("Klik untuk mengubah ide singkat Anda menjadi prompt fotorealistis kaya detail dengan AI!");
+                        ImGui::SetTooltip("AI akan mengembangkan ide singkat Anda menjadi prompt fotografi realistis kaya detail!");
                     }
                     ImGui::PopStyleColor(3);
                 }
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.08f, 0.55f, 0.45f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.12f, 0.70f, 0.58f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.05f, 0.42f, 0.35f, 1.0f));
+                if (ImGui::Button("🎙️ Bicara", ImVec2(smart_btn_w, 52))) {
+                    TriggerWindowsVoiceTyping();
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Aktifkan Mikrofon: Bicara dalam Bahasa Indonesia, suara Anda otomatis diketik ke kolom pesan!");
+                }
+                ImGui::PopStyleColor(3);
             }
             ImGui::SameLine();
         }
@@ -3915,99 +3918,117 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             }
         }
 
-        ImGui::SetNextItemWidth(195.0f);
-        ImGui::Combo("##PromptAssistMode", &g_prompt_assist_mode, g_prompt_assist_names, IM_ARRAYSIZE(g_prompt_assist_names));
-        HelpBadge(
-            "Mode Penanganan Prompt AI",
-            "Pilih bagaimana prompt yang Anda ketik diproses sebelum generate:\n\n"
-            "- ⚡ Prompt Asli Langsung: AI mengeksekusi 100% persis apa yang Anda ketik tanpa penambahan kata atau konsep otomatis sama sekali.\n"
-            "- ✍️ Koreksi & Rapikan: Menerjemahkan bahasa Indonesia ke Inggris dan membetulkan ejaan secara setia TANPA menambah objek baru yang tidak diminta.\n"
-            "- ✨ Kembangkan Cerdas (AI): Mengembangkan ide singkat dengan pencahayaan dan tekstur fotografi realistis dengan tetap menjaga subjek asli Anda secara ketat.",
-            "Pilih '⚡ Prompt Asli Langsung' jika Anda ingin kontrol penuh tanpa campur tangan AI.",
-            "Gunakan '✍️ Koreksi' jika menulis dalam bahasa Indonesia agar tetap 100% setia pada instruksi asli Anda."
-        );
+        // ------------------ OPSI KONTEKSTUAL BAWAH ------------------
+        if (g_selected_mode == 2 || g_selected_mode == 3) {
+            // MODE DIFUSI FOTO / NSFW
+            ImGui::SetNextItemWidth(155.0f);
+            ImGui::Combo("##PromptAssistMode", &g_prompt_assist_mode, g_prompt_assist_names, IM_ARRAYSIZE(g_prompt_assist_names));
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip(
+                    "Mode Penanganan Prompt AI:\n\n"
+                    "- ⚡ Prompt Asli Langsung: AI mengeksekusi 100%% persis apa yang Anda ketik tanpa penambahan kata otomatis sama sekali.\n"
+                    "- ✍️ Koreksi & Rapikan: Menerjemahkan bahasa Indonesia ke Inggris dan membetulkan ejaan secara setia.\n"
+                    "- ✨ Kembangkan Cerdas: Mengembangkan ide singkat dengan pencahayaan dan tekstur fotografi realistis."
+                );
+            }
 
-        ImGui::SameLine();
-        ImGui::TextDisabled("|");
-        ImGui::SameLine();
-
-        ImGui::SetNextItemWidth(175.0f);
-        ImGui::Combo("##FramingSelector", &g_framing_idx, g_framing_names, IM_ARRAYSIZE(g_framing_names));
-        HelpBadge(
-            "Framing / Sudut Pandang Kamera",
-            "Pilihan framing sudut foto kamera:\n- Auto: AI menyesuaikan otomatis dari kata-kata prompt Anda.\n- Wajah (85mm): Foto potret fokus jarak dekat khusus wajah dan mata (Close-up).\n- 1/2 Badan (50mm): Foto proporsional dari pinggang ke atas (Medium shot).\n- Full Body (35mm): Foto utuh dari kepala hingga ujung kaki dengan sepatu menyentuh tanah.",
-            "AI sepenuhnya mematuhi opsi yang Anda pilih di sini tanpa memotong tubuh secara sembarangan.",
-            "Pilih 'Full Body (35mm)' jika ingin foto seluruh badan utuh, dan pasangkan dengan Rasio Vertikal 512x768."
-        );
-
-        ImGui::SameLine();
-        ImGui::TextDisabled("|");
-        ImGui::SameLine();
-
-        ImGui::SetNextItemWidth(170.0f);
-        ImGui::Combo("##ResolutionSelector", &g_resolution_idx, g_resolutions, IM_ARRAYSIZE(g_resolutions));
-        HelpBadge(
-            "Rasio / Resolusi Foto",
-            "Pilihan rasio & ukuran output foto:\n- 512 x 512: Persegi Kotak (1:1), proses paling cepat di CPU.\n- 512 x 768: Potret Vertikal (2:3), ruang vertikal luas SANGAT IDEAL untuk Seluruh Badan (Full Body) atau wallpaper HP.\n- 768 x 512: Lanskap Mendatar (3:2), cocok untuk pemandangan & mobil.",
-            "Resolusi dikunci sesuai pilihan Anda dan TIDAK DIUBAH otomatis secara diam-diam oleh AI.",
-            "Gunakan 512x768 jika mengambil foto Seluruh Badan (Full Body) agar proporsi tubuh manusia tampak sempurna."
-        );
-
-        ImGui::SameLine();
-        ImGui::TextDisabled("|");
-        ImGui::SameLine();
-
-        ImGui::Checkbox("HD Wajah & Anatomi", &g_fullbody_face_fix);
-        HelpBadge(
-            "HD Wajah & Anatomi (Anti-Muka Kabur & Cacat)",
-            "Menajamkan wajah dan memperbaiki anatomi pada foto Seluruh Badan (Full Body):\n- Menambahkan bobot ekstra pada detail wajah (1.25x), mata simetris, dan iris jernih.\n- Mencegah deformasi tubuh, jari berlebih/kurang, dan tangan rusak.\n- Mengoptimalkan steps denoising (25 steps) agar wajah jarak jauh tidak meleleh.",
-            "Prompt berjalan apa adanya tanpa koreksi anatomi otomatis (rawan muka buram di foto Full Body).",
-            "SANGAT DIREKOMENDASIKAN SELALU AKTIF (ON) terutama untuk pose berdiri / Full Body."
-        );
-
-        if (!g_has_attached_doc) {
             ImGui::SameLine();
             ImGui::TextDisabled("|");
             ImGui::SameLine();
 
-            if (ImGui::Button("📄 Lampirkan File", ImVec2(130, 24))) {
-                std::string chosen = OpenDocumentFileDialog(g_hMainWnd);
-                if (!chosen.empty()) {
-                    AttachDocument(chosen.c_str());
+            ImGui::SetNextItemWidth(130.0f);
+            ImGui::Combo("##FramingSelector", &g_framing_idx, g_framing_names, IM_ARRAYSIZE(g_framing_names));
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip(
+                    "Framing / Sudut Pandang Kamera:\n"
+                    "- Auto: AI menyesuaikan dari teks prompt.\n"
+                    "- Wajah (85mm): Foto potret jarak dekat khusus wajah dan mata.\n"
+                    "- 1/2 Badan (50mm): Foto proporsional dari pinggang ke atas.\n"
+                    "- Full Body (35mm): Foto seluruh badan utuh dari kepala hingga ujung kaki."
+                );
+            }
+
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+
+            ImGui::SetNextItemWidth(125.0f);
+            ImGui::Combo("##ResolutionSelector", &g_resolution_idx, g_resolutions, IM_ARRAYSIZE(g_resolutions));
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip(
+                    "Rasio & Ukuran Foto:\n"
+                    "- 512 x 512: Persegi Kotak (1:1), proses paling cepat.\n"
+                    "- 512 x 768: Potret Vertikal (2:3), ruang vertikal luas ideal untuk Full Body.\n"
+                    "- 768 x 512: Lanskap Mendatar (3:2), cocok untuk pemandangan & mobil."
+                );
+            }
+
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+
+            ImGui::Checkbox("HD Wajah", &g_fullbody_face_fix);
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip(
+                    "HD Wajah & Anatomi (Anti-Muka Kabur):\n"
+                    "Menambahkan bobot ekstra pada detail wajah, mata simetris, dan iris jernih.\n"
+                    "Mencegah deformasi tubuh dan tangan rusak terutama pada foto Full Body."
+                );
+            }
+
+            if (!g_has_init_image) {
+                ImGui::SameLine();
+                ImGui::TextDisabled("|");
+                ImGui::SameLine();
+
+                if (ImGui::Button("📷 Foto Acuan", ImVec2(105, 24))) {
+                    std::string chosen = OpenImageFileDialog(g_hMainWnd);
+                    if (!chosen.empty()) {
+                        SetInitImage(chosen.c_str());
+                    }
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Masukkan Foto Acuan untuk Edit Foto (Image-to-Image) atau Kunci Pose (ControlNet)");
                 }
             }
-            HelpBadge(
-                "Lampirkan File / Dokumen",
-                "Memilih dokumen teks, file data, atau source code dari laptop Anda untuk dibaca dan dianalisis oleh AI.\nFormat didukung: .txt, .pdf, .md, .csv, .json, .py, .c, .cpp, .log, dll.\nAnda juga bisa langsung Drag & Drop file ke dalam aplikasi!",
-                "AI akan membaca isi dokumen, lalu merangkum, mencari informasi, atau menjawab pertanyaan Anda mengenai dokumen tersebut.",
-                "Sangat berguna untuk membaca skripsi, menganalisis data laporan, mereview coding, atau mengekstrak isi teks."
-            );
-        }
 
-        if (!g_has_init_image) {
-            ImGui::SameLine();
-            ImGui::TextDisabled("|");
-            ImGui::SameLine();
-
-            if (ImGui::Button("📷 Masukkan Foto", ImVec2(130, 24))) {
-                std::string chosen = OpenImageFileDialog(g_hMainWnd);
-                if (!chosen.empty()) {
-                    SetInitImage(chosen.c_str());
-                }
+            if (right_panel_width > 860.0f) {
+                ImGui::SameLine();
+                ImGui::TextDisabled("| Enter: Generate");
             }
-            HelpBadge(
-                "Masukkan Foto (Image-to-Image / Edit Foto)",
-                "Memilih foto dari laptop Anda untuk diedit atau diubah gayanya dengan AI.\nAnda juga bisa langsung Drag & Drop (seret file foto) ke dalam aplikasi kapan saja!",
-                "Mode biasa (Text-to-Image) membuat foto baru dari nol berdasarkan teks prompt saja.",
-                "Gunakan fitur ini jika ingin mengubah pakaian, mengganti latar belakang, atau merombak gaya foto yang sudah ada."
-            );
-        }
+        } else {
+            // MODE TEKS (CHAT / AUTO / VIDEO / SUARA)
+            if (!g_has_attached_doc) {
+                if (ImGui::Button("📄 Lampirkan File", ImVec2(130, 24))) {
+                    std::string chosen = OpenDocumentFileDialog(g_hMainWnd);
+                    if (!chosen.empty()) {
+                        AttachDocument(chosen.c_str());
+                    }
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip(
+                        "Pilih file dokumen teks, data, atau skrip koding (.txt, .pdf, .md, .csv, .py, .cpp, dll)\n"
+                        "AI akan membaca isi dokumen, lalu merangkum, menganalisis, atau menjawab pertanyaan Anda."
+                    );
+                }
+                ImGui::SameLine();
+                ImGui::TextDisabled("|");
+                ImGui::SameLine();
+            }
 
-        if (right_panel_width > 920.0f) {
+            ImGui::Checkbox("🌐 Cari di Web", &g_search_internet);
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip(
+                    "Pencarian Web Otomatis:\n"
+                    "AI akan mencari informasi online terkini dari internet sebelum menjawab.\n"
+                    "Matikan jika ingin AI menjawab 100%% offline dari data lokal model."
+                );
+            }
+
             ImGui::SameLine();
             ImGui::TextDisabled("|");
             ImGui::SameLine();
-            ImGui::TextDisabled("Enter: Kirim");
+            ImGui::TextDisabled("💡 Shift+Enter: baris baru • Enter: kirim");
         }
 
         ImGui::EndChild(); // BottomInput
