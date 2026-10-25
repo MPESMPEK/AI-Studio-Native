@@ -81,7 +81,13 @@ static bool g_use_fast_vae = true; // Gunakan TAESD (~2 detik vs 61 detik di CPU
 static bool g_turbo_mode = false;  // Mode Turbo LCM 4-Step (Off secara default untuk foto DSLR 20-step paling tajam)
 static bool g_use_realism_lora = true; // LoRA Detail Kulit & Realisme Alami (add_detail)
 static float g_realism_lora_strength = 0.75f;
-static bool g_smart_prompt_auto = true; // ✨ Otomatis perluas ide singkat menjadi prompt fotorealistis AI
+static int g_prompt_assist_mode = 0; // 0: Prompt Asli Langsung, 1: Koreksi & Rapikan Saja, 2: Kembangkan Cerdas (AI)
+static const char* g_prompt_assist_names[] = {
+    "⚡ Prompt Asli Langsung",
+    "✍️ Koreksi & Rapikan",
+    "✨ Kembangkan Cerdas (AI)"
+};
+static bool g_smart_prompt_auto = false; // backward-compat flag
 static std::atomic<bool> g_is_optimizing_prompt(false);
 static std::thread g_optimize_thread;
 static std::mutex g_input_mutex;
@@ -1644,7 +1650,7 @@ static std::string GenerateSmartPrompt(const std::string& input_idea, int num_th
         }
     }
 
-    std::string sys_prompt = "<|im_start|>system\\nYou are an expert prompt engineer for photorealistic Stable Diffusion models. Convert the user's short idea into a rich, detailed English prompt describing: subject appearance, beautiful natural face, realistic skin texture with visible micro pores, " + framing_desc + ", cinematic lighting (golden hour or studio rim light), composition, and 8k photorealistic quality. Output ONLY the raw prompt tokens separated by commas, in English. Do not add explanations, conversational text, or quotes.<|im_end|>\\n<|im_start|>user\\nConvert this idea into a photorealistic prompt: " + safe_idea + "<|im_end|>\\n<|im_start|>assistant\\n";
+    std::string sys_prompt = "<|im_start|>system\\nYou are an expert photographic prompt assistant for Stable Diffusion. Your mission is to enrich the user's idea into a master photorealistic prompt while STRICTLY PRESERVING the exact core subject, action, clothing, and setting requested. DO NOT invent random extra objects or change the scene. Enhance ONLY photographic parameters: natural lighting, authentic skin texture with visible micro pores, " + framing_desc + ", and 8k photorealistic quality. Output ONLY raw English prompt tokens separated by commas. Do not add explanations or quotes.<|im_end|>\\n<|im_start|>user\\nEnhance this prompt faithfully: " + safe_idea + "<|im_end|>\\n<|im_start|>assistant\\n";
 
     bool is_rtx_active = (g_hardware_backend_mode == 2 || (g_hardware_backend_mode == 0 && g_hw_profile.has_nvidia_gpu));
     int actual_gpu_layers = is_rtx_active ? (g_gpu_layers > 0 ? g_gpu_layers : 99) : 0;
@@ -1698,6 +1704,69 @@ static std::string GenerateSmartPrompt(const std::string& input_idea, int num_th
 
     if (clean.length() < 12) return input_idea;
     return clean;
+}
+
+// ✍️ AI Prompt Corrector (Menerjemahkan kata Indonesia ke Inggris & memperbaiki tata bahasa TANPA menambah konsep baru)
+static std::string GenerateCorrectedPrompt(const std::string& input_idea, int num_threads) {
+    std::string model_path = "models\\Teks_LLM\\qwen2.5-coder-1.5b-instruct-q4_k_m.gguf";
+    if (GetFileAttributesA(model_path.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        model_path = "models\\Teks_LLM\\Qwen3.8-2B-Uncensored-Q4_K_M.gguf";
+    }
+    if (GetFileAttributesA(model_path.c_str()) == INVALID_FILE_ATTRIBUTES && !g_detected_llms.empty()) {
+        model_path = g_detected_llms[0].full_path;
+    }
+    if (GetFileAttributesA(model_path.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        return input_idea;
+    }
+
+    std::string safe_idea = "";
+    for (char c : input_idea) {
+        if (c == '"') safe_idea += "\\\"";
+        else if (c == '\n' || c == '\r') safe_idea += " ";
+        else safe_idea += c;
+    }
+
+    std::string sys_prompt = "<|im_start|>system\\nYou are an accurate prompt translator and grammar cleaner for Stable Diffusion. Translate Indonesian words to clear English tags and fix spelling. STRICT RULES: DO NOT add new characters, objects, backgrounds, or actions that were not asked for. Keep the exact intent 100% faithful to the user. Output ONLY the translated, corrected English descriptive tags separated by commas. No explanations, no conversation, no quotes.<|im_end|>\\n<|im_start|>user\\nTranslate and clean this prompt faithfully without adding new concepts: " + safe_idea + "<|im_end|>\\n<|im_start|>assistant\\n";
+
+    bool is_rtx_active = (g_hardware_backend_mode == 2 || (g_hardware_backend_mode == 0 && g_hw_profile.has_nvidia_gpu));
+    int actual_gpu_layers = is_rtx_active ? (g_gpu_layers > 0 ? g_gpu_layers : 99) : 0;
+
+    char cmd[4096];
+    if (actual_gpu_layers > 0) {
+        snprintf(cmd, sizeof(cmd),
+            "llama_bin\\llama-cli.exe -m \"%s\" -p \"%s\" -ngl %d -n 75 -t %d --single-turn --no-display-prompt --log-disable --simple-io",
+            model_path.c_str(), sys_prompt.c_str(), actual_gpu_layers, num_threads
+        );
+    } else {
+        snprintf(cmd, sizeof(cmd),
+            "llama_bin\\llama-cli.exe -m \"%s\" -p \"%s\" -n 75 -t %d --single-turn --no-display-prompt --log-disable --simple-io",
+            model_path.c_str(), sys_prompt.c_str(), num_threads
+        );
+    }
+
+    std::string raw_out = ExecuteNativeCliSync(cmd);
+    std::string clean = "";
+    size_t asst_pos = raw_out.rfind("<|im_start|>assistant");
+    if (asst_pos != std::string::npos) {
+        size_t nl_pos = raw_out.find('\n', asst_pos);
+        clean = (nl_pos != std::string::npos) ? raw_out.substr(nl_pos + 1) : raw_out.substr(asst_pos + 21);
+    } else {
+        size_t p_pos = raw_out.rfind("> ");
+        if (p_pos != std::string::npos) {
+            size_t nl_pos = raw_out.find('\n', p_pos);
+            clean = (nl_pos != std::string::npos) ? raw_out.substr(nl_pos + 1) : raw_out.substr(p_pos + 2);
+        } else {
+            clean = raw_out;
+        }
+    }
+
+    size_t end_pos = clean.find("<|im_end|>");
+    if (end_pos != std::string::npos) clean = clean.substr(0, end_pos);
+
+    while (!clean.empty() && (clean.front() == ' ' || clean.front() == '\n' || clean.front() == '\r' || clean.front() == '"')) clean.erase(clean.begin());
+    while (!clean.empty() && (clean.back() == ' ' || clean.back() == '\n' || clean.back() == '\r' || clean.back() == '"')) clean.pop_back();
+
+    return clean.empty() ? input_idea : clean;
 }
 
 static std::string CleanLlamaStreamOutput(const std::string& raw) {
@@ -1790,34 +1859,38 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
     std::string original_idea = prompt;
     std::string smart_prompt = prompt;
 
-    // 2. AI Smart Prompt Optimizer (Jika Auto Prompt Pintar Aktif)
-    if (is_photo && g_smart_prompt_auto) {
-        std::string lower_p = prompt;
-        for (char& ch : lower_p) ch = (char)tolower(ch);
-        bool needs_expansion = false;
-        if (lower_p.find("photorealistic") == std::string::npos &&
-            lower_p.find("8k") == std::string::npos &&
-            lower_p.find("canon") == std::string::npos &&
-            prompt.length() < 180) {
-            needs_expansion = true;
-        }
+    // Mode Penanganan Prompt:
+    // 0: ⚡ Prompt Asli Langsung (Raw) -> Tanpa LLM, tanpa penambahan konsep/kata otomatis
+    // 1: ✍️ Koreksi / Rapikan Saja -> LLM menerjemahkan & membersihkan ejaan, 100% setia tanpa halusinasi
+    // 2: ✨ Kembangkan Cerdas (AI) -> LLM memperkaya detail fotografi & pencahayaan dengan setia
 
-        if (needs_expansion) {
-            g_process_progress.store(0.10f);
-            {
-                std::lock_guard<std::mutex> lock(g_status_mutex);
-                g_process_status = "✨ Mengoptimalkan ide menjadi Prompt Pintar (AI LLM)...";
-            }
-            std::string enriched = GenerateSmartPrompt(prompt, num_threads, g_framing_idx);
-            if (!enriched.empty() && enriched != prompt) {
-                smart_prompt = enriched;
-            }
+    if (is_photo && g_prompt_assist_mode == 1) {
+        // Mode 1: Koreksi / Rapikan Ejaan
+        g_process_progress.store(0.10f);
+        {
+            std::lock_guard<std::mutex> lock(g_status_mutex);
+            g_process_status = "✍️ Mengoreksi & merapikan ejaan prompt...";
+        }
+        std::string corrected = GenerateCorrectedPrompt(prompt, num_threads);
+        if (!corrected.empty()) {
+            smart_prompt = corrected;
+        }
+    } else if (is_photo && g_prompt_assist_mode == 2) {
+        // Mode 2: Kembangkan Cerdas
+        g_process_progress.store(0.10f);
+        {
+            std::lock_guard<std::mutex> lock(g_status_mutex);
+            g_process_status = "✨ Mengembangkan ide menjadi Prompt Fotografi Cerdas...";
+        }
+        std::string enriched = GenerateSmartPrompt(prompt, num_threads, g_framing_idx);
+        if (!enriched.empty()) {
+            smart_prompt = enriched;
         }
     }
 
-    // Enhance prompt dengan keywords realistik jika mode NSFW / Foto aktif (Detail Wajah & Mata 8K)
+    // Enhance prompt dengan keywords realistik HANYA jika Mode 2 (Kembangkan Cerdas) aktif
     std::string final_prompt = smart_prompt;
-    if (is_photo && (actual_mode == 3 || actual_mode == 2) && g_nsfw_quality_booster) {
+    if (is_photo && (actual_mode == 3 || actual_mode == 2) && g_prompt_assist_mode == 2 && g_nsfw_quality_booster) {
         std::string lower_p = final_prompt;
         for (char& ch : lower_p) ch = (char)tolower(ch);
         if (lower_p.find("photorealistic") == std::string::npos && 
@@ -1826,8 +1899,8 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
         }
     }
 
-    // Terapkan framing eksplisit jika opsi manual dipilih oleh pengguna
-    if (is_photo && (actual_mode == 3 || actual_mode == 2)) {
+    // Terapkan framing eksplisit jika opsi manual dipilih oleh pengguna (Close-up, Medium, Full Body)
+    if (is_photo && (actual_mode == 3 || actual_mode == 2) && g_framing_idx != 0) {
         std::string lower_p = final_prompt;
         for (char& ch : lower_p) ch = (char)tolower(ch);
         if (g_framing_idx == 3) {
@@ -1864,7 +1937,7 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
             is_fullbody_shot = true;
         }
 
-        if (is_fullbody_shot && g_fullbody_face_fix) {
+        if (is_fullbody_shot && g_fullbody_face_fix && g_prompt_assist_mode != 0) {
             if (lower_p.find("detailed beautiful face") == std::string::npos &&
                 lower_p.find("symmetrical iris") == std::string::npos) {
                 final_prompt += ", (photorealistic detailed beautiful face:1.25), (sharp focused clear eyes, symmetrical facial features, detailed iris, sharp pupils:1.25), natural lips, highly detailed skin texture, accurate body anatomy, natural limbs, perfect hands, 5 fingers on each hand";
@@ -3842,12 +3915,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             }
         }
 
-        ImGui::Checkbox("Auto Prompt", &g_smart_prompt_auto);
+        ImGui::SetNextItemWidth(195.0f);
+        ImGui::Combo("##PromptAssistMode", &g_prompt_assist_mode, g_prompt_assist_names, IM_ARRAYSIZE(g_prompt_assist_names));
         HelpBadge(
-            "Auto Prompt Pintar (AI Expander)",
-            "Jika Anda mengetik ide singkat (contoh: 'cewek cantik di pantai'), AI LLM lokal otomatis memperluasnya menjadi master prompt fotografi profesional berstandar industri dengan lensa kamera, sudut pandang, pencahayaan, dan detail 8K.",
-            "AI Diffusion langsung menggunakan teks yang Anda ketik apa adanya tanpa penambahan/perluasan dari model LLM.",
-            "AKTIFKAN (ON) terutama jika Anda suka mengetik ide singkat dalam Bahasa Indonesia agar hasilnya langsung memukau."
+            "Mode Penanganan Prompt AI",
+            "Pilih bagaimana prompt yang Anda ketik diproses sebelum generate:\n\n"
+            "- ⚡ Prompt Asli Langsung: AI mengeksekusi 100% persis apa yang Anda ketik tanpa penambahan kata atau konsep otomatis sama sekali.\n"
+            "- ✍️ Koreksi & Rapikan: Menerjemahkan bahasa Indonesia ke Inggris dan membetulkan ejaan secara setia TANPA menambah objek baru yang tidak diminta.\n"
+            "- ✨ Kembangkan Cerdas (AI): Mengembangkan ide singkat dengan pencahayaan dan tekstur fotografi realistis dengan tetap menjaga subjek asli Anda secara ketat.",
+            "Pilih '⚡ Prompt Asli Langsung' jika Anda ingin kontrol penuh tanpa campur tangan AI.",
+            "Gunakan '✍️ Koreksi' jika menulis dalam bahasa Indonesia agar tetap 100% setia pada instruksi asli Anda."
         );
 
         ImGui::SameLine();
