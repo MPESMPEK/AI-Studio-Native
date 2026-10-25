@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Studio Android - Preview UI</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+    ::-webkit-scrollbar-thumb { background: rgba(100,100,100,0.25); border-radius: 4px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4 antialiased font-sans select-none">
+
+  <!-- Container Device Mockup (Android Phone View) -->
+  <div class="relative w-full max-w-[410px] h-[840px] bg-slate-900 border-4 border-slate-700/80 rounded-[44px] shadow-2xl overflow-hidden flex flex-col ring-1 ring-slate-800">
+    
+    <!-- Status Bar HP Android -->
+    <div class="h-10 px-7 pt-2 flex items-center justify-between text-xs text-slate-400 font-medium z-30 bg-slate-900/90 backdrop-blur-md">
+      <span>23:15</span>
+      <div class="w-20 h-4 bg-slate-800 rounded-full mx-auto flex items-center justify-center">
+        <div class="w-2 h-2 bg-slate-950 rounded-full"></div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z"/></svg>
+        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M2 17h20v2H2zm1.15-4.05L4 11.47l.85 1.48 1.3-.75-.85-1.48H7v-1.5H5.3l.85-1.48-1.3-.75L4 8.53l-.85-1.48-1.3.75.85 1.48H1v1.5h1.7l-.85 1.48 1.3.75z"/></svg>
+        <span>98%</span>
+      </div>
+    </div>
+
+    <!-- Header Atas Aplikasi -->
+    <div class="px-5 py-3 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/95 backdrop-blur-sm z-20">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <h1 class="text-base font-bold text-white tracking-wide">AI Studio Mobile</h1>
+          <span class="px-1.5 py-0.5 text-[10px] bg-sky-500/20 text-sky-400 font-semibold rounded">BETA</span>
+        </div>
+        <p class="text-[11px] text-slate-400">Terhubung ke Laptop Engine (LAN 192.168.1.5)</p>
+      </div>
+      <button onclick="switchTab('settings')" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center hover:bg-slate-700 transition">
+        <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+      </button>
+    </div>
+
+    <!-- KONTEN UTAMA (SCROLLABLE) -->
+    <div class="flex-1 overflow-y-auto pb-6">
+
+      <!-- ================= TAB 1: HOME (CARDS LIST ALA UIZARD) ================= -->
+      <div id="tab-home" class="tab-content active px-4 py-4 space-y-4">
+        
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-white">Pilih Mode AI</h2>
+          <span class="text-xs text-sky-400 cursor-pointer font-medium">Lihat Semua</span>
+        </div>
+
+        <!-- Card 1: Chat LLM & Coding -->
+        <div onclick="switchTab('chat')" class="group relative bg-slate-800/80 hover:bg-slate-800 border border-slate-700/70 hover:border-sky-500/50 rounded-2xl p-4 transition-all duration-200 cursor-pointer shadow-lg hover:shadow-sky-500/10">
+          <div class="flex gap-3.5 items-start">
+            <div class="w-20 h-20 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex-shrink-0 flex items-center justify-center text-3xl shadow-inner">
+              💬
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-sky-400 bg-sky-950/60 px-2 py-0.5 rounded-full border border-sky-800/40">Teks & Logika</span>
+                <span class="text-xs text-slate-400">100% Offline</span>
+              </div>
+              <h3 class="text-base font-semibold text-white mt-1 group-hover:text-sky-300 transition">Percakapan Bebas & Koding</h3>
+              <p class="text-xs text-slate-400 mt-0.5 line-clamp-1">DeepSeek-R1 • Qwen 2.5 • Analisis Dokumen</p>
+              
+              <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
+                <div class="w-28 bg-slate-700/80 h-1.5 rounded-full overflow-hidden">
+                  <div class="bg-sky-400 h-full w-[85%] rounded-full"></div>
+                </div>
+                <span class="font-semibold text-sky-300">Buka Chat →</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Generator Foto Realistis (Diffusion) -->
+        <div onclick="switchTab('studio'); setPhotoMode('real')" class="group relative bg-slate-800/80 hover:bg-slate-800 border border-slate-700/70 hover:border-emerald-500/50 rounded-2xl p-4 transition-all duration-200 cursor-pointer shadow-lg hover:shadow-emerald-500/10">
+          <div class="flex gap-3.5 items-start">
+            <div class="w-20 h-20 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-700 flex-shrink-0 flex items-center justify-center text-3xl shadow-inner">
+              🎨
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/40">Fotografi 8K</span>
+                <span class="text-xs text-slate-400">DSLR Camera</span>
+              </div>
+              <h3 class="text-base font-semibold text-white mt-1 group-hover:text-emerald-300 transition">Generator Foto Realistis</h3>
+              <p class="text-xs text-slate-400 mt-0.5 line-clamp-1">CyberRealistic V5 • Pori Kulit Alami • HD Wajah</p>
+              
+              <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
+                <div class="w-28 bg-slate-700/80 h-1.5 rounded-full overflow-hidden">
+                  <div class="bg-emerald-400 h-full w-[65%] rounded-full"></div>
+                </div>
+                <span class="font-semibold text-emerald-300">Generate Foto →</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Studio Dewasa & NSFW (Bebas Sensor) -->
+        <div onclick="switchTab('studio'); setPhotoMode('nsfw')" class="group relative bg-slate-800/80 hover:bg-slate-800 border border-slate-700/70 hover:border-rose-500/50 rounded-2xl p-4 transition-all duration-200 cursor-pointer shadow-lg hover:shadow-rose-500/10">
+          <div class="flex gap-3.5 items-start">
+            <div class="w-20 h-20 rounded-xl bg-gradient-to-tr from-rose-600 to-pink-700 flex-shrink-0 flex items-center justify-center text-3xl shadow-inner">
+              🔞
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-rose-950/60 px-2 py-0.5 rounded-full border border-rose-800/40">100% Uncensored</span>
+                <span class="text-xs text-slate-400">Sensual Art</span>
+              </div>
+              <h3 class="text-base font-semibold text-white mt-1 group-hover:text-rose-300 transition">Studio Dewasa & NSFW</h3>
+              <p class="text-xs text-slate-400 mt-0.5 line-clamp-1">Bebas Sensor Moral • Fine Art • Kunci Pose</p>
+              
+              <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
+                <div class="w-28 bg-slate-700/80 h-1.5 rounded-full overflow-hidden">
+                  <div class="bg-rose-400 h-full w-[90%] rounded-full"></div>
+                </div>
+                <span class="font-semibold text-rose-300">Buka Studio →</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4: Asisten Suara AI -->
+        <div onclick="switchTab('chat'); setVoiceHint()" class="group relative bg-slate-800/80 hover:bg-slate-800 border border-slate-700/70 hover:border-purple-500/50 rounded-2xl p-4 transition-all duration-200 cursor-pointer shadow-lg hover:shadow-purple-500/10">
+          <div class="flex gap-3.5 items-start">
+            <div class="w-20 h-20 rounded-xl bg-gradient-to-tr from-purple-600 to-violet-700 flex-shrink-0 flex items-center justify-center text-3xl shadow-inner">
+              🎙️
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded-full border border-purple-800/40">Voice AI</span>
+                <span class="text-xs text-slate-400">Audio In/Out</span>
+              </div>
+              <h3 class="text-base font-semibold text-white mt-1 group-hover:text-purple-300 transition">Asisten Suara Bahasa Indo</h3>
+              <p class="text-xs text-slate-400 mt-0.5 line-clamp-1">Dikte Suara HP • Audio Respon Alami</p>
+              
+              <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
+                <div class="w-28 bg-slate-700/80 h-1.5 rounded-full overflow-hidden">
+                  <div class="bg-purple-400 h-full w-[45%] rounded-full"></div>
+                </div>
+                <span class="font-semibold text-purple-300">Bicara Sekarang →</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= TAB 2: CHAT (PERCAKAPAN LLM) ================= -->
+      <div id="tab-chat" class="tab-content px-4 py-3 flex flex-col h-full space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <span class="text-xs text-slate-400">Model: <strong class="text-sky-400">DeepSeek-R1 Distill</strong></span>
+          <button class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded hover:bg-slate-700">+ Sesi Baru</button>
+        </div>
+
+        <!-- Chat Bubble Stream -->
+        <div class="space-y-3 text-sm">
+          <!-- Pesan AI -->
+          <div class="flex items-start gap-2.5">
+            <div class="w-7 h-7 rounded-full bg-sky-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">AI</div>
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl rounded-tl-none p-3 text-slate-200 max-w-[85%] shadow-sm">
+              <p>Halo! Saya asisten AI lokal Anda. Ada yang bisa saya bantu untuk koding, analisis dokumen, atau membuat ide prompt gambar?</p>
+              <span class="text-[10px] text-slate-400 mt-1 block text-right">23:14</span>
+            </div>
+          </div>
+
+          <!-- Pesan User -->
+          <div class="flex items-start justify-end gap-2.5">
+            <div class="bg-sky-600 text-white rounded-2xl rounded-tr-none p-3 max-w-[85%] shadow-sm">
+              <p>Buatkan prompt untuk foto wanita di pantai waktu sore yang super realistis.</p>
+              <span class="text-[10px] text-sky-200 mt-1 block text-right">23:15</span>
+            </div>
+          </div>
+
+          <!-- Respon AI -->
+          <div class="flex items-start gap-2.5">
+            <div class="w-7 h-7 rounded-full bg-sky-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">AI</div>
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl rounded-tl-none p-3 text-slate-200 max-w-[85%] shadow-sm">
+              <div class="p-2 bg-slate-900/80 rounded-lg border border-slate-700/60 text-xs font-mono text-emerald-300 mb-2">
+                "Beautiful Indonesian woman posing on tropical beach during golden hour sunset, cinematic lighting, 8k uhd, photorealistic, raw candid photo"
+              </div>
+              <button onclick="switchTab('studio'); fillPrompt('Beautiful Indonesian woman posing on tropical beach during golden hour sunset, cinematic lighting, 8k uhd, photorealistic, raw candid photo')" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3 py-1.5 rounded-lg w-full flex items-center justify-center gap-1.5">
+                <span>🎨 Buka di Studio Foto Langsung</span>
+              </button>
+              <span class="text-[10px] text-slate-400 mt-1.5 block text-right">23:15</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input Bar -->
+        <div class="pt-4 border-t border-slate-800/80 mt-auto">
+          <div class="flex items-center gap-2 bg-slate-800/90 rounded-full px-3 py-1.5 border border-slate-700">
+            <button class="text-slate-400 hover:text-white p-1">📎</button>
+            <input type="text" placeholder="Ketik pesan..." class="bg-transparent flex-1 text-xs text-white focus:outline-none placeholder-slate-500">
+            <button class="p-1.5 rounded-full bg-sky-500 text-white hover:bg-sky-400 transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 3: STUDIO FOTO & NSFW ================= -->
+      <div id="tab-studio" class="tab-content px-4 py-3 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h2 id="studio-title" class="text-sm font-bold text-emerald-400 flex items-center gap-1.5">
+            <span>🎨</span> Generator Foto Realistis
+          </h2>
+          <span class="text-[11px] bg-slate-800 px-2 py-0.5 rounded text-slate-300">CyberRealistic V5</span>
+        </div>
+
+        <!-- Preset Cepat -->
+        <div class="flex gap-2 overflow-x-auto pb-1 text-xs">
+          <button onclick="fillPrompt('Portrait photo of attractive woman, warm sunlight, natural skin pores, 85mm lens')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-full border border-slate-700 text-slate-300 whitespace-nowrap">Potret Wajah</button>
+          <button onclick="fillPrompt('Full body shot of elegant woman in summer dress standing outdoors, head to toe, sunny day, 8k')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-full border border-slate-700 text-slate-300 whitespace-nowrap">Full Body</button>
+          <button onclick="fillPrompt('Sensual portrait in cozy bedroom, soft morning window light, ultra realistic skin, candid raw photo')" class="px-2.5 py-1 bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 whitespace-nowrap">NSFW Sensual</button>
+        </div>
+
+        <!-- Kolom Prompt -->
+        <div class="space-y-1.5">
+          <label class="text-xs text-slate-300 font-medium">Prompt Deskripsi Foto:</label>
+          <textarea id="studio-prompt" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 placeholder-slate-500" placeholder="Ketik ide foto Anda (bahasa Indo atau Inggris)..."></textarea>
+        </div>
+
+        <!-- Parameter Grid Ringkas -->
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="bg-slate-800/90 border border-slate-700/80 p-2.5 rounded-xl">
+            <span class="text-slate-400 block mb-1">Rasio Foto</span>
+            <select class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1 text-slate-200">
+              <option>512 x 768 (Full Body)</option>
+              <option>512 x 512 (Persegi 1:1)</option>
+              <option>768 x 512 (Lanskap)</option>
+            </select>
+          </div>
+          <div class="bg-slate-800/90 border border-slate-700/80 p-2.5 rounded-xl">
+            <span class="text-slate-400 block mb-1">Framing Kamera</span>
+            <select class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1 text-slate-200">
+              <option>Auto (AI Pilihin)</option>
+              <option>Wajah (85mm)</option>
+              <option>1/2 Badan (50mm)</option>
+              <option>Full Body (35mm)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Toggle Detail -->
+        <div class="flex items-center justify-between bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60 text-xs">
+          <span class="text-slate-300">✨ HD Wajah & Anatomi</span>
+          <input type="checkbox" checked class="w-4 h-4 accent-emerald-500">
+        </div>
+
+        <!-- Tombol Generate -->
+        <button id="btn-generate" onclick="simulateGenerate()" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
+          <span>🚀 Generate Foto di Laptop</span>
+        </button>
+
+        <!-- Progress Simulated -->
+        <div id="gen-progress" class="hidden bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
+          <div class="flex justify-between text-xs text-slate-300">
+            <span id="gen-status">Inisialisasi C++ Engine...</span>
+            <span id="gen-pct" class="font-bold text-emerald-400">0%</span>
+          </div>
+          <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+            <div id="gen-bar" class="bg-emerald-500 h-full w-[0%] transition-all duration-300"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 4: GALERI (OUTPUTS) ================= -->
+      <div id="tab-gallery" class="tab-content px-4 py-3 space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h2 class="text-sm font-bold text-white">Galeri Foto Tersimpan</h2>
+          <span class="text-xs text-slate-400">3 Foto</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div class="group relative rounded-xl overflow-hidden bg-slate-800 border border-slate-700 aspect-[2/3] flex flex-col justify-end p-2.5">
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent"></div>
+            <div class="absolute inset-0 flex items-center justify-center text-4xl">📸</div>
+            <div class="relative z-10">
+              <span class="text-[10px] text-emerald-400 font-bold">CyberRealistic V5</span>
+              <p class="text-xs text-white font-semibold">img_1792940395.png</p>
+              <span class="text-[9px] text-slate-400">512x768 • 25 steps</span>
+            </div>
+          </div>
+
+          <div class="group relative rounded-xl overflow-hidden bg-slate-800 border border-slate-700 aspect-[2/3] flex flex-col justify-end p-2.5">
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent"></div>
+            <div class="absolute inset-0 flex items-center justify-center text-4xl">📸</div>
+            <div class="relative z-10">
+              <span class="text-[10px] text-rose-400 font-bold">NSFW Fine Art</span>
+              <p class="text-xs text-white font-semibold">img_1792940561.png</p>
+              <span class="text-[9px] text-slate-400">512x768 • 25 steps</span>
+            </div>
+          </div>
+
+          <div class="group relative rounded-xl overflow-hidden bg-slate-800 border border-slate-700 aspect-[2/3] flex flex-col justify-end p-2.5">
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent"></div>
+            <div class="absolute inset-0 flex items-center justify-center text-4xl">📸</div>
+            <div class="relative z-10">
+              <span class="text-[10px] text-sky-400 font-bold">Realistic Vision</span>
+              <p class="text-xs text-white font-semibold">img_1792867839.png</p>
+              <span class="text-[9px] text-slate-400">512x512 • 20 steps</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 5: PENGATURAN (SETTINGS) ================= -->
+      <div id="tab-settings" class="tab-content px-4 py-3 space-y-3">
+        <h2 class="text-sm font-bold text-white border-b border-slate-800 pb-2">Pengaturan & Koneksi</h2>
+
+        <div class="space-y-2 text-xs">
+          <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+            <span class="text-slate-400 block mb-1">Alamat IP Server Laptop</span>
+            <input type="text" value="http://192.168.1.5:8080" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 font-mono">
+            <span class="text-[10px] text-emerald-400 mt-1 block">🟢 Terhubung: Ping 2ms</span>
+          </div>
+
+          <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+            <span class="text-slate-400 block mb-1">Hardware Laptop</span>
+            <p class="text-white font-medium">RAM: 7.6 GB Physical (4.9 GB Free)</p>
+            <p class="text-slate-400 text-[11px]">Backend: Pure C++ Native (AVX2 + TAESD Fast VAE)</p>
+          </div>
+
+          <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+            <span class="text-slate-400 block mb-1">Model LLM Default</span>
+            <select class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200">
+              <option>DeepSeek-R1-Distill-Qwen-1.5B (Penalaran)</option>
+              <option>Qwen3.8-2B-Uncensored (Bebas Sensor)</option>
+              <option>qwen2.5-coder-1.5b (Koding Cepat)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BOTTOM NAVIGATION BAR (PERSIS SEPERTI UIZARD) -->
+    <div class="h-16 px-4 bg-slate-900/95 border-t border-slate-800/90 flex items-center justify-around text-slate-400 z-30 backdrop-blur-md">
+      
+      <!-- Home (Katalog Cards) -->
+      <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center gap-1 text-sky-400 font-medium">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        <span class="text-[10px]">Home</span>
+      </button>
+
+      <!-- Chat LLM -->
+      <button onclick="switchTab('chat')" id="nav-chat" class="flex flex-col items-center gap-1 hover:text-white transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        <span class="text-[10px]">Chat</span>
+      </button>
+
+      <!-- Studio (Generate) -->
+      <button onclick="switchTab('studio')" id="nav-studio" class="flex flex-col items-center gap-1 hover:text-white transition">
+        <div class="w-8 h-8 -mt-3 rounded-full bg-gradient-to-tr from-emerald-500 to-sky-500 flex items-center justify-center text-white shadow-md">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        </div>
+        <span class="text-[10px]">Studio</span>
+      </button>
+
+      <!-- Galeri -->
+      <button onclick="switchTab('gallery')" id="nav-gallery" class="flex flex-col items-center gap-1 hover:text-white transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <span class="text-[10px]">Galeri</span>
+      </button>
+
+      <!-- Pengaturan -->
+      <button onclick="switchTab('settings')" id="nav-settings" class="flex flex-col items-center gap-1 hover:text-white transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span class="text-[10px]">Setting</span>
+      </button>
+
+    </div>
+
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      // Sembunyikan semua tab
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      // Reset warna nav
+      ['home', 'chat', 'studio', 'gallery', 'settings'].forEach(id => {
+        const btn = document.getElementById('nav-' + id);
+        if (btn) {
+          btn.classList.remove('text-sky-400');
+          btn.classList.add('text-slate-400');
+        }
+      });
+
+      // Tampilkan tab target
+      const target = document.getElementById('tab-' + tabId);
+      if (target) target.classList.add('active');
+
+      // Aktifkan icon nav target
+      const activeNav = document.getElementById('nav-' + tabId);
+      if (activeNav) {
+        activeNav.classList.remove('text-slate-400');
+        activeNav.classList.add('text-sky-400');
+      }
+    }
+
+    function setPhotoMode(mode) {
+      const title = document.getElementById('studio-title');
+      const btn = document.getElementById('btn-generate');
+      if (mode === 'nsfw') {
+        title.innerHTML = '<span>🔞</span> Studio Dewasa & NSFW (Bebas Sensor)';
+        title.className = 'text-sm font-bold text-rose-400 flex items-center gap-1.5';
+        btn.className = 'w-full py-3 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2';
+      } else {
+        title.innerHTML = '<span>🎨</span> Generator Foto Realistis';
+        title.className = 'text-sm font-bold text-emerald-400 flex items-center gap-1.5';
+        btn.className = 'w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2';
+      }
+    }
+
+    function fillPrompt(text) {
+      document.getElementById('studio-prompt').value = text;
+    }
+
+    function simulateGenerate() {
+      const progressBox = document.getElementById('gen-progress');
+      const status = document.getElementById('gen-status');
+      const pct = document.getElementById('gen-pct');
+      const bar = document.getElementById('gen-bar');
+      const btn = document.getElementById('btn-generate');
+
+      progressBox.classList.remove('hidden');
+      btn.disabled = true;
+      btn.classList.add('opacity-50');
+
+      let current = 0;
+      const interval = setInterval(() => {
+        current += 10;
+        if (current <= 20) {
+          status.innerText = "Memuat Checkpoint & VAE...";
+        } else if (current <= 80) {
+          status.innerText = "Sampling Denoising C++ (" + current + "%)...";
+        } else if (current <= 95) {
+          status.innerText = "Decoding Latents Citra Asli...";
+        } else {
+          status.innerText = "Selesai 100%! Tersimpan ke Galeri.";
+          pct.innerText = "100%";
+          bar.style.width = "100%";
+          clearInterval(interval);
+          btn.disabled = false;
+          btn.classList.remove('opacity-50');
+          setTimeout(() => {
+            switchTab('gallery');
+            progressBox.classList.add('hidden');
+            bar.style.width = "0%";
+          }, 1000);
+          return;
+        }
+        pct.innerText = current + "%";
+        bar.style.width = current + "%";
+      }, 350);
+    }
+  </script>
+</body>
+</html>
