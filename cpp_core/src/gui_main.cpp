@@ -2693,30 +2693,34 @@ static void HelpBadgeSimple(const char* title, const char* explanation, const ch
     }
 }
 
-static ID3D11ShaderResourceView* g_hub_thumb_photo = NULL;
-static ID3D11ShaderResourceView* g_hub_thumb_nsfw  = NULL;
-static ID3D11ShaderResourceView* g_hub_thumb_voice = NULL;
-static bool g_hub_thumbs_loaded = false;
+static ID3D11ShaderResourceView* g_hub_custom_tex_chat = NULL;
+static ID3D11ShaderResourceView* g_hub_custom_tex_photo = NULL;
+static ID3D11ShaderResourceView* g_hub_custom_tex_nsfw  = NULL;
+static ID3D11ShaderResourceView* g_hub_custom_tex_voice = NULL;
 
-static void EnsureHubTexturesLoaded() {
-    if (g_hub_thumbs_loaded || !g_pd3dDevice) return;
+static void SetCardCover(int target_mode, const std::string& path) {
+    if (!g_pd3dDevice || path.empty()) return;
     int w = 0, h = 0;
-    if (GetFileAttributesA("outputs\\foto\\img_1792940395.png") != INVALID_FILE_ATTRIBUTES) {
-        g_hub_thumb_photo = LoadTextureFromFileDX11(g_pd3dDevice, "outputs\\foto\\img_1792940395.png", &w, &h);
+    ID3D11ShaderResourceView* tex = LoadTextureFromFileDX11(g_pd3dDevice, path.c_str(), &w, &h);
+    if (!tex) return;
+
+    if (target_mode == 1) {
+        if (g_hub_custom_tex_chat) g_hub_custom_tex_chat->Release();
+        g_hub_custom_tex_chat = tex;
+    } else if (target_mode == 2) {
+        if (g_hub_custom_tex_photo) g_hub_custom_tex_photo->Release();
+        g_hub_custom_tex_photo = tex;
+    } else if (target_mode == 3) {
+        if (g_hub_custom_tex_nsfw) g_hub_custom_tex_nsfw->Release();
+        g_hub_custom_tex_nsfw = tex;
+    } else if (target_mode == 5) {
+        if (g_hub_custom_tex_voice) g_hub_custom_tex_voice->Release();
+        g_hub_custom_tex_voice = tex;
     }
-    if (GetFileAttributesA("outputs\\foto\\img_1792940561.png") != INVALID_FILE_ATTRIBUTES) {
-        g_hub_thumb_nsfw = LoadTextureFromFileDX11(g_pd3dDevice, "outputs\\foto\\img_1792940561.png", &w, &h);
-    }
-    if (GetFileAttributesA("outputs\\foto\\img_1792867839.png") != INVALID_FILE_ATTRIBUTES) {
-        g_hub_thumb_voice = LoadTextureFromFileDX11(g_pd3dDevice, "outputs\\foto\\img_1792867839.png", &w, &h);
-    }
-    g_hub_thumbs_loaded = true;
 }
 
-// Render Dashboard Card Hub (Tata Letak Kartu Horizontal Modern Persis Uizard)
+// Render Dashboard Card Hub (Tata Letak Kartu Horizontal Modern Persis Uizard - Sesuai Pilihan)
 static void RenderDashboardHub(float panel_w, float panel_h) {
-    EnsureHubTexturesLoaded();
-
     ImGui::BeginChild("DashboardHub", ImVec2(panel_w, panel_h), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
     ImGui::Dummy(ImVec2(0, 6));
@@ -2744,21 +2748,47 @@ static void RenderDashboardHub(float panel_w, float panel_h) {
 
         ImGui::BeginChild(id, ImVec2(card_w, card_h), true, ImGuiWindowFlags_NoScrollbar);
 
-        // 1. Kolom Kiri: Thumbnail Foto Bulat (Uizard Style)
+        // 1. Kolom Kiri: Thumbnail Foto (Sesuai Pilihan Pengguna atau Icon Elegan)
+        ImGui::PushID(id);
         if (tex) {
             ImGui::Image((void*)tex, ImVec2(thumb_sz, thumb_sz));
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Klik untuk mengganti gambar sampul pilihan Anda");
+            }
+            if (ImGui::IsItemClicked()) {
+                std::string chosen = OpenImageFileDialog(g_hMainWnd);
+                if (!chosen.empty()) {
+                    SetCardCover(target_mode, chosen);
+                }
+            }
         } else {
             ImDrawList* dl = ImGui::GetWindowDrawList();
             ImVec2 p0 = ImGui::GetCursorScreenPos();
             ImVec2 p1 = ImVec2(p0.x + thumb_sz, p0.y + thumb_sz);
-            dl->AddRectFilled(p0, p1, ImColor(accent_col), 10.0f);
             
-            ImVec2 txt_sz = ImGui::CalcTextSize(placeholder_icon);
-            ImVec2 txt_pos = ImVec2(p0.x + (thumb_sz - txt_sz.x) * 0.5f, p0.y + (thumb_sz - txt_sz.y) * 0.5f);
-            dl->AddText(txt_pos, ImColor(1.0f, 1.0f, 1.0f, 1.0f), placeholder_icon);
+            dl->AddRectFilled(p0, p1, ImColor(accent_col.x * 0.35f, accent_col.y * 0.35f, accent_col.z * 0.35f, 0.85f), 10.0f);
+            dl->AddRect(p0, p1, ImColor(accent_col), 10.0f, 0, 1.5f);
 
-            ImGui::Dummy(ImVec2(thumb_sz, thumb_sz));
+            ImVec2 icon_sz = ImGui::CalcTextSize(placeholder_icon);
+            ImVec2 icon_pos = ImVec2(p0.x + (thumb_sz - icon_sz.x) * 0.5f, p0.y + 22.0f);
+            dl->AddText(icon_pos, ImColor(1.0f, 1.0f, 1.0f, 1.0f), placeholder_icon);
+
+            const char* hint_txt = "[+ Pilih]";
+            ImVec2 hint_sz = ImGui::CalcTextSize(hint_txt);
+            ImVec2 hint_pos = ImVec2(p0.x + (thumb_sz - hint_sz.x) * 0.5f, p0.y + 46.0f);
+            dl->AddText(hint_pos, ImColor(accent_col), hint_txt);
+
+            if (ImGui::InvisibleButton("##ThumbBtn", ImVec2(thumb_sz, thumb_sz))) {
+                std::string chosen = OpenImageFileDialog(g_hMainWnd);
+                if (!chosen.empty()) {
+                    SetCardCover(target_mode, chosen);
+                }
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Klik untuk memilih gambar sampul dari laptop Anda");
+            }
         }
+        ImGui::PopID();
 
         ImGui::SameLine();
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10.0f);
@@ -2774,7 +2804,7 @@ static void RenderDashboardHub(float panel_w, float panel_h) {
         // Title (Bold & Jelas)
         ImGui::TextColored(ImVec4(0.96f, 0.98f, 1.0f, 1.0f), "%s", title);
         
-        // Subtitle / Creator
+        // Subtitle / Model Aktif Sesuai Pilihan Pengguna
         ImGui::TextDisabled("%s", subtitle);
 
         // Progress Bar (Sama persis seperti progress bar Uizard)
@@ -2804,16 +2834,24 @@ static void RenderDashboardHub(float panel_w, float panel_h) {
         ImGui::PopStyleColor(2);
     };
 
+    // Model Teks Aktif
+    std::string active_llm = (!g_llm_items.empty() && g_selected_llm < (int)g_llm_items.size()) ? g_llm_items[g_selected_llm] : "DeepSeek-R1 Distill Qwen";
+    std::string chat_sub = active_llm + " - Penalaran Logika & Dokumen";
+
+    // Model Foto Aktif
+    std::string active_photo = (!g_photo_items.empty() && g_selected_photo < (int)g_photo_items.size()) ? g_photo_items[g_selected_photo] : "CyberRealistic V5.0";
+    std::string photo_sub = active_photo + " - Potret Manusia DSLR 85mm";
+
     // Kartu 1: Percakapan Bebas & Koding
     render_uizard_card(
         "Card_Chat",
-        NULL,
+        g_hub_custom_tex_chat,
         "AI CHAT",
         "TEKS & LOGIKA LLM",
         "Percakapan Bebas & Koding",
-        "DeepSeek-R1 & Qwen 2.5 • Penalaran Logika & Dokumen",
-        0.95f,
-        "100% Siap (Lokal)",
+        chat_sub.c_str(),
+        1.00f,
+        "Status: Siap (Offline) - 100% C++ Engine",
         "Buka Chat ->",
         1,
         ImVec4(0.18f, 0.52f, 0.92f, 0.95f),
@@ -2823,16 +2861,16 @@ static void RenderDashboardHub(float panel_w, float panel_h) {
 
     ImGui::Spacing();
 
-    // Kartu 2: Generator Foto Realistis (Dengan Thumbnail Nyata!)
+    // Kartu 2: Generator Foto Realistis (Sesuai Pilihan Model & Gambar)
     render_uizard_card(
         "Card_Photo",
-        g_hub_thumb_photo,
+        g_hub_custom_tex_photo,
         "FOTO",
         "FOTOGRAFI REALISTIS",
         "Generator Foto Realistis",
-        "CyberRealistic V5.0 • Potret Manusia DSLR 85mm",
-        0.85f,
-        "HD Wajah & Pori Kulit",
+        photo_sub.c_str(),
+        0.95f,
+        "Status: Siap - Resolusi 512x768 - LoRA+VAE",
         "Buka Studio ->",
         2,
         ImVec4(0.12f, 0.65f, 0.50f, 0.95f),
@@ -2842,16 +2880,16 @@ static void RenderDashboardHub(float panel_w, float panel_h) {
 
     ImGui::Spacing();
 
-    // Kartu 3: Studio Dewasa & NSFW (Dengan Thumbnail Sensual Nyata!)
+    // Kartu 3: Studio Dewasa & NSFW (Sesuai Pilihan Gambar)
     render_uizard_card(
         "Card_NSFW",
-        g_hub_thumb_nsfw,
+        g_hub_custom_tex_nsfw,
         "18+ NSFW",
         "100% BEBAS SENSOR",
         "Studio Dewasa & Sensual",
-        "Fine Art Nude • Kunci Pose ControlNet Canny",
+        "Fine Art Nude & Sensual - Kunci Pose ControlNet Canny",
         0.90f,
-        "100% Bebas Sensor",
+        "Status: Siap - 100% Bebas Sensor Moral",
         "Buka Dewasa ->",
         3,
         ImVec4(0.85f, 0.15f, 0.38f, 0.95f),
@@ -2864,13 +2902,13 @@ static void RenderDashboardHub(float panel_w, float panel_h) {
     // Kartu 4: Asisten Suara AI
     render_uizard_card(
         "Card_Voice",
-        g_hub_thumb_voice,
+        g_hub_custom_tex_voice,
         "VOICE",
         "VOICE ASSISTANT",
         "Asisten Suara AI",
         "Dikte Suara Bahasa Indonesia & Speech Engine C++",
-        0.70f,
-        "Mikrofon & Audio Aktif",
+        0.80f,
+        "Status: Mikrofon Aktif - Audio C++ Engine",
         "Buka Suara ->",
         5,
         ImVec4(0.55f, 0.25f, 0.85f, 0.95f),
