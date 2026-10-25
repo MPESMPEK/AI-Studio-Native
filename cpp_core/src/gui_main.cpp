@@ -59,7 +59,8 @@ static int g_selected_mode = 0; // 0=Otomatis, 1=Chat, 2=Foto, 3=NSFW / Dewasa, 
 static int g_selected_llm = 0;
 static int g_selected_photo = 0;
 static bool g_search_internet = false;
-static bool g_voice_enabled = true;
+static bool g_voice_enabled = false;
+static bool g_auto_speak = false; // Default: OFF (AI diam dan TIDAK ngomong sendiri kecuali disuruh)
 static bool g_agent_mode = true;
 static CoreTelemetry g_telemetry = {0};
 
@@ -2602,8 +2603,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     SaveSessionToFile(cur_sess);
                 }
 
-                // Otomatis bicara dengan suara manusia asli jika di Mode 5 (Suara AI) atau Voice TTS aktif
-                if (g_pending_mode == 5 || (g_voice_enabled && g_pending_mode == 1)) {
+                // Hanya bicara jika user mengaktifkan 'Auto Bicara' atau eksplisit menyuruh AI bersuara di prompt
+                bool user_requested_voice = false;
+                std::string lower_prompt = g_pending_prompt;
+                for (char& c : lower_prompt) c = (char)tolower(c);
+                if (lower_prompt.find("bicara") != std::string::npos ||
+                    lower_prompt.find("suara") != std::string::npos ||
+                    lower_prompt.find("baca") != std::string::npos ||
+                    lower_prompt.find("ngomong") != std::string::npos ||
+                    lower_prompt.find("ucapkan") != std::string::npos) {
+                    user_requested_voice = true;
+                }
+
+                if ((g_auto_speak || user_requested_voice) && (g_pending_mode == 5 || (g_voice_enabled && g_pending_mode == 1))) {
                     SpeakNaturalVoiceAsync(aiMsg.text, g_voice_character);
                 }
 
@@ -3057,13 +3069,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             ImGui::TextDisabled("|");
             ImGui::SameLine();
 
+            ImGui::Checkbox("Auto Bicara", &g_auto_speak);
+            HelpBadge(
+                "Mode Bicara Otomatis",
+                "Jika DICENTANG: AI akan otomatis membacakan setiap jawaban begitu selesai menulis.",
+                "Jika TIDAK DICENTANG (Default): AI tetap hening/diam. AI hanya akan bersuara jika Anda mengklik tombol [🔊 Suara Gadis] / [🔊 Suara Ardi], atau jika di prompt Anda menyuruhnya 'bacakan' / 'bicara'.",
+                "Tips: Biarkan mati jika Anda ingin membaca teks secara santai tanpa suara mengejutkan."
+            );
+
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+
             if (g_is_speaking.load()) {
                 static float anim_dot = 0.0f;
                 anim_dot += 0.05f;
                 int wave = (int)(sinf(anim_dot * 3.0f) * 2.0f + 2.0f);
                 const char* waves[] = { " ~ ~ ~ ", " ∿ ~ ∿ ", " ∿ ∿ ∿ ", " ~ ∿ ~ ", " ~ ~ ~ " };
                 const char* wstr = waves[(wave >= 0 && wave < 5) ? wave : 0];
-                ImGui::TextColored(ImVec4(0.35f, 1.0f, 0.65f, 1.0f), "🔊 AI Sedang Berbicara%s", wstr);
+                ImGui::TextColored(ImVec4(0.35f, 1.0f, 0.65f, 1.0f), "🔊 Sedang Bicara%s", wstr);
                 ImGui::SameLine();
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.18f, 0.18f, 0.9f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.95f, 0.25f, 0.25f, 1.0f));
@@ -3072,16 +3096,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 }
                 ImGui::PopStyleColor(2);
             } else {
-                ImGui::TextColored(ImVec4(0.55f, 0.88f, 0.80f, 0.9f), "💤 Siap Bicara (Ketik / Gunakan Mic)");
-                ImGui::SameLine();
-                ImGui::TextDisabled("|");
-                ImGui::SameLine();
-                if (ImGui::SmallButton("Ceritakan lelucon")) {
-                    strcpy(g_input_prompt, "Ceritakan satu lelucon lucu bahasa Indonesia yang singkat dan bikin ketawa!");
-                }
-                ImGui::SameLine();
-                if (ImGui::SmallButton("Siapa kamu?")) {
-                    strcpy(g_input_prompt, "Halo! Ceritakan tentang dirimu dan apa saja yang bisa kamu bantu.");
+                if (g_auto_speak) {
+                    ImGui::TextColored(ImVec4(0.35f, 0.95f, 0.70f, 0.9f), "🔊 Auto Bicara: Aktif");
+                } else {
+                    ImGui::TextColored(ImVec4(0.65f, 0.75f, 0.85f, 0.85f), "🔇 AI Diam (Klik tombol suara untuk mendengar)");
                 }
             }
 
