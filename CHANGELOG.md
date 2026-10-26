@@ -155,6 +155,32 @@ Semua catatan perubahan, perbaikan bug, penambahan fitur, dan perombakan arsitek
 
 ---
 
+## [v1.9.0] - 2026-10-26
+### 🚀 Dynamic Studio Node System: Tambah & Kurangi Node Bebas, Ultra-Smooth Dragging & Cubit Touchpad Laptop
+- **Dynamic Node Pipeline Management (Tambah & Kurangi Node Bebas)**:
+  - Tombol **`[+] Tambah Node`** interaktif di toolbar atas dengan menu dropdown untuk memunculkan 8 varian node:
+    - `+ [LoRA] Adaptor & Bobot Baru` (Mendukung banyak LoRA sekaligus dengan penggabungan bobot otomatis di prompt).
+    - `+ [MODEL] Checkpoint Loader` (Pemilih model checkpoint SD1.5 / DiT).
+    - `+ [PROMPT] Positif & Negatif` (Prompt conditioning engine).
+    - `+ [CONTROL] ControlNet Canny Pose` (Kunci kontur siluet tubuh).
+    - `+ [SAMPLER] K-Sampler Engine` (Algoritma sampling, steps, CFG, resolusi & seed).
+    - `+ [VAE] Decoder Engine` (Fast TAESD atau High-Quality MSE).
+    - `+ [PREVIEW] Hasil Render Gambar` (Pratinjau visual & pembesar fullscreen).
+    - `+ [CATATAN] Sticky Note Alur` (Node catatan bebas untuk menulis resep prompt, ide, atau dokumentasi alur).
+  - Tombol **`[x]`** pada setiap bilah atas node untuk menghapus atau mengurangi node secara bebas tanpa merusak alur kerja.
+  - Tombol **`[Reset Standar]`** untuk mengembalikan formasi ke 7 node standar modular secara instan.
+  - Kabel Bézier kurva menyala otomatis mendeteksi koneksi aktif dan merutekan kabel secara adaptif saat node ditambah atau dihapus (*zero crash*).
+- **Pergeseran Node Halus & Fleksibel Satu-Per-Satu (*Ultra-Smooth Independent Dragging*)**:
+  - Bilah atas (*header bar*) setiap node kini dilengkapi tombol penangkap mouse lebar penuh (*full-width invisible grab handle*) dengan ikon grip `::`. Mouse tidak akan terlepas meskipun digeser dengan kecepatan tinggi.
+  - Pergeseran strictly independen per-node (`satu-satu fleksibel`) yang bebas diposisikan di mana saja pada kanvas tanpa keterikatan grid kaku.
+  - Mekanisme **Bring-to-Front Z-Order**: Node yang sedang digeser otomatis mengapung di lapisan paling atas (*top layer*) di atas node-node lain, disertai aksen border menyala (*electric glow outline*).
+- **Dukungan Zoom Lengkap: Roda Scroll Mouse & Gesture Cubit Laptop (*Pinch-to-Zoom*)**:
+  - Menangani gesture cubit (*pinch-to-zoom*) touchpad laptop Windows secara komprehensif via Precision Touchpad delta (`Ctrl + MouseWheel`) dan Windows Touch API native `WM_GESTURE` (`GID_ZOOM` via `SetGestureConfig`).
+  - Area sensitivitas zoom mencakup 100% luas kanvas (memperbaiki bug di mana kursor di atas node memblokir sinyal scroll).
+  - Panning kanvas laptop fleksibel: Pengguna laptop tanpa klik tengah kini dapat menggeser kanvas menggunakan **`Shift + Geser Kiri`** atau **`Alt + Geser Kiri`**.
+
+---
+
 ## [v1.8.0] - 2026-10-26
 ### 💎 Perbaikan Font 100% Anti-Mojibake & Kanvas Studio Node Interaktif (Zoom In/Out + Panning Bebas)
 - **Eliminasi Total Font Mojibake (100% Clean ASCII Modern Badge Typography)**:
