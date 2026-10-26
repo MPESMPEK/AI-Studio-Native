@@ -1,11 +1,12 @@
-name: Build Android APK
+name: Build Android APK & Attach to Release
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -28,21 +29,24 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Build Android APK (Release & Debug)
+      - name: Build Android APK
         run: |
           cd android
-          gradle assembleRelease assembleDebug --stacktrace
+          gradle assembleRelease --stacktrace
+          mkdir -p ../dist-apk
+          cp app/build/outputs/apk/release/*.apk ../dist-apk/AI-Studio-Mobile.apk
 
-      - name: Upload Release APK Artifact
+      - name: Upload APK as Workflow Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AI-Studio-Mobile-Release-APK
-          path: android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: warn
+          name: AI-Studio-Mobile-APK
+          path: dist-apk/AI-Studio-Mobile.apk
 
-      - name: Upload Debug APK Artifact
-        uses: actions/upload-artifact@v4
+      - name: Attach APK to GitHub Release v1.4.0
+        uses: softprops/action-gh-release@v2
+        if: success()
         with:
-          name: AI-Studio-Mobile-Debug-APK
-          path: android/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: warn
+          tag_name: v1.4.0
+          files: dist-apk/AI-Studio-Mobile.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
