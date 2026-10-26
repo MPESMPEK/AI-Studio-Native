@@ -1,5 +1,5 @@
 @echo off
-title ⚡ C++ Native Engine Benchmark (AVX2 + OpenMP)
+title C++ Native Engine Benchmark (AVX2 + OpenMP)
 color 0a
 cd /d "%~dp0\.."
 

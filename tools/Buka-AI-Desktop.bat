@@ -1,5 +1,5 @@
 @echo off
-title 🚀 AI Studio Native C++ (Direct3D 11 + Touchscreen)
+title AI Studio Native C++ (Direct3D 11)
 color 0b
 cd /d "%~dp0\.."
 
