@@ -1165,6 +1165,11 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
 
         std::string safe_neg = "";
         std::string neg_src = g_negative_prompt;
+        // Suntikkan filter Anti-Plastik & Anti-Muka AI jika belum ada
+        if (neg_src.find("plastic") == std::string::npos && neg_src.find("doll") == std::string::npos) {
+            if (!neg_src.empty()) neg_src += ", ";
+            neg_src += "(doll, plastic skin, cgi, 3d, anime, illustration, fake face, blurry face:1.2), (deformed, distorted:1.3), bad anatomy, extra limbs, bad eyes";
+        }
         if (is_photo && is_fullbody_shot) {
             if (neg_src.find("cropped") == std::string::npos) {
                 neg_src += ", cropped, out of frame, cut off head, cut off feet, missing feet";
@@ -2311,12 +2316,19 @@ static void ApplyNodePreset(int preset_id) {
                 n.lora_strength = 0.75f;
             }
         } else if (n.type == NODE_TYPE_PROMPT) {
-            if (preset_id == 1) {
-                strcpy(n.prompt, "Cyberpunk neon street at rainy night, vibrant glowing holographic signs, reflections on wet asphalt, cinematic lighting, 8k");
-            } else if (preset_id == 2) {
-                strcpy(n.prompt, "Studio portrait matching the pose and contour lines of reference image, soft dramatic studio lighting, sharp focus, 8k uhd");
-            } else {
-                strcpy(n.prompt, "Close-up portrait of a gorgeous Indonesian woman smiling outdoors in nature, golden hour warm lighting, natural skin pores, Canon EOS R5 85mm f/1.4, 8k uhd photorealistic");
+            // HANYA isi prompt jika masih kosong! Jangan pernah timpa prompt yang sudah diketik pengguna!
+            if (strlen(n.prompt) == 0) {
+                if (preset_id == 1) {
+                    strcpy(n.prompt, "Cyberpunk neon street at rainy night, vibrant glowing holographic signs, reflections on wet asphalt, cinematic lighting, 8k");
+                } else if (preset_id == 2) {
+                    strcpy(n.prompt, "Studio portrait matching the pose and contour lines of reference image, soft dramatic studio lighting, sharp focus, 8k uhd");
+                } else {
+                    strcpy(n.prompt, "Two gorgeous Indonesian women, best friends smiling outdoors, candid photography, natural skin pores, Canon EOS R5 85mm f/1.4, 8k uhd photorealistic");
+                }
+            }
+            // Selalu suntikkan Negative Prompt Master Anti-Plastik & Anti-Boneka AI
+            if (strlen(n.neg_prompt) == 0 || strstr(n.neg_prompt, "plastic") == NULL) {
+                strcpy(n.neg_prompt, "(deformed, distorted:1.3), bad anatomy, extra limbs, (mutated hands:1.4), (doll, plastic skin, cgi, 3d, anime, illustration, fake:1.2), lowres, blurry face, bad eyes");
             }
         } else if (n.type == NODE_TYPE_CONTROLNET) {
             n.cnet_enabled = (preset_id == 2);

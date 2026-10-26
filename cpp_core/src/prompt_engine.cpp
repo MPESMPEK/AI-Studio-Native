@@ -46,108 +46,26 @@ std::string ExecuteNativeCliSync(const std::string& cmd_str) {
 }
 
 std::string GenerateSmartPrompt(const std::string& input_idea, int num_threads, int framing_idx) {
-    std::string model_path = "models\\Teks_LLM\\qwen2.5-coder-1.5b-instruct-q4_k_m.gguf";
-    if (GetFileAttributesA(model_path.c_str()) == INVALID_FILE_ATTRIBUTES) {
-        model_path = "models\\Teks_LLM\\Qwen3.8-2B-Uncensored-Q4_K_M.gguf";
-    }
-    if (GetFileAttributesA(model_path.c_str()) == INVALID_FILE_ATTRIBUTES && !g_detected_llms.empty()) {
-        model_path = g_detected_llms[0].full_path;
-    }
-    if (GetFileAttributesA(model_path.c_str()) == INVALID_FILE_ATTRIBUTES) {
-        return input_idea;
-    }
+    if (input_idea.empty()) return input_idea;
 
-    std::string safe_idea = "";
-    for (char c : input_idea) {
-        if (c == '"') safe_idea += "\\\"";
-        else if (c == '\n' || c == '\r') safe_idea += " ";
-        else safe_idea += c;
+    // PRESET KETAJAMAN DSLR: 100% MEMPERTAHANKAN PROMPT INTI PENGGUNA!
+    // Tidak mengubah subjek, aksi, atau tema pengguna sama sekali.
+    std::string enhanced = input_idea;
+
+    if (enhanced.find("8k") == std::string::npos && enhanced.find("uhd") == std::string::npos) {
+        enhanced += ", 8k uhd, dslr photorealistic, Canon EOS R5 85mm f/1.4 lens";
     }
-
-    std::string framing_desc = "";
-    if (framing_idx == 1) {
-        framing_desc = "extreme close-up portrait photograph, Canon EOS R5 85mm f/1.4 lens, tight framing on face, sharp facial focus, beautiful expressive eyes, micro skin pores, 8k uhd photorealistic";
-    } else if (framing_idx == 2) {
-        framing_desc = "medium shot photograph, waist-up portrait, 50mm f/1.8 lens, natural posture, sharp focus on subject and face, detailed clothing and expression, 8k uhd photorealistic";
-    } else if (framing_idx == 3) {
-        framing_desc = "wide-angle 35mm lens, full length body shot, standing pose, captured completely from head to toe with visible shoes and feet on the ground, full figure framing, high resolution full body photograph, (photorealistic detailed beautiful face:1.25), (sharp focused eyes, symmetrical iris:1.2), accurate human anatomy, proportionate limbs, realistic hands, 5 fingers on each hand";
-    } else {
-        std::string lower_idea = input_idea;
-        for (char& ch : lower_idea) ch = (char)tolower(ch);
-        bool is_fullbody = (lower_idea.find("full body") != std::string::npos ||
-                            lower_idea.find("fullbody") != std::string::npos ||
-                            lower_idea.find("seluruh badan") != std::string::npos ||
-                            lower_idea.find("seluruh tubuh") != std::string::npos ||
-                            lower_idea.find("full length") != std::string::npos ||
-                            lower_idea.find("standing") != std::string::npos ||
-                            lower_idea.find("berdiri") != std::string::npos ||
-                            lower_idea.find("head to toe") != std::string::npos ||
-                            lower_idea.find("kaki") != std::string::npos ||
-                            lower_idea.find("sepatu") != std::string::npos);
-
-        if (is_fullbody) {
-            framing_desc = "wide-angle 35mm lens, full length body shot, standing pose, captured from head to toe with visible shoes on the ground, full figure framing, high resolution full body photograph, (photorealistic detailed beautiful face:1.25), (sharp focused eyes, symmetrical iris:1.2), accurate human anatomy, proportionate limbs, realistic hands, 5 fingers on each hand";
-        } else if (lower_idea.find("wajah") != std::string::npos ||
-                   lower_idea.find("close up") != std::string::npos ||
-                   lower_idea.find("close-up") != std::string::npos ||
-                   lower_idea.find("muka") != std::string::npos) {
-            framing_desc = "close-up portrait photograph, Canon EOS R5 85mm f/1.4 lens, sharp facial focus, beautiful eyes, 8k uhd photorealistic";
-        } else {
-            framing_desc = "portrait photograph, Canon EOS R5 85mm f/1.4 lens, natural lighting, sharp facial focus, 8k uhd photorealistic quality";
-        }
+    if (enhanced.find("skin") == std::string::npos && enhanced.find("pore") == std::string::npos) {
+        enhanced += ", natural skin texture, visible micro pores";
+    }
+    if (enhanced.find("eyes") == std::string::npos && enhanced.find("face") == std::string::npos) {
+        enhanced += ", sharp focused authentic human eyes, realistic facial features";
+    }
+    if (enhanced.find("lighting") == std::string::npos && enhanced.find("light") == std::string::npos) {
+        enhanced += ", natural cinematic daylight, soft shadows, film grain, masterpiece";
     }
 
-    std::string sys_prompt = "<|im_start|>system\\nYou are an expert photographic prompt assistant for Stable Diffusion. Your mission is to enrich the user's idea into a master photorealistic prompt while STRICTLY PRESERVING the exact core subject, action, clothing, and setting requested. DO NOT invent random extra objects or change the scene. Enhance ONLY photographic parameters: natural lighting, authentic skin texture with visible micro pores, " + framing_desc + ", and 8k photorealistic quality. Output ONLY raw English prompt tokens separated by commas. Do not add explanations or quotes.<|im_end|>\\n<|im_start|>user\\nEnhance this prompt faithfully: " + safe_idea + "<|im_end|>\\n<|im_start|>assistant\\n";
-
-    bool is_rtx_active = (g_hardware_backend_mode == 2 || (g_hardware_backend_mode == 0 && g_hw_profile.has_nvidia_gpu));
-    int actual_gpu_layers = is_rtx_active ? (g_gpu_layers > 0 ? g_gpu_layers : 99) : 0;
-
-    char cmd[4096];
-    if (actual_gpu_layers > 0) {
-        snprintf(cmd, sizeof(cmd),
-            "llama_bin\\llama-cli.exe -m \"%s\" -p \"%s\" -ngl %d -n 90 -t %d --single-turn --no-display-prompt --log-disable --simple-io",
-            model_path.c_str(), sys_prompt.c_str(), actual_gpu_layers, num_threads
-        );
-    } else {
-        snprintf(cmd, sizeof(cmd),
-            "llama_bin\\llama-cli.exe -m \"%s\" -p \"%s\" -n 90 -t %d --single-turn --no-display-prompt --log-disable --simple-io",
-            model_path.c_str(), sys_prompt.c_str(), num_threads
-        );
-    }
-
-    std::string raw_out = ExecuteNativeCliSync(cmd);
-    std::string clean = "";
-    size_t asst_pos = raw_out.rfind("<|im_start|>assistant");
-    if (asst_pos != std::string::npos) {
-        size_t nl_pos = raw_out.find('\n', asst_pos);
-        clean = (nl_pos != std::string::npos) ? raw_out.substr(nl_pos + 1) : raw_out.substr(asst_pos + 21);
-    } else {
-        size_t p_pos = raw_out.rfind("> ");
-        if (p_pos != std::string::npos) {
-            size_t nl_pos = raw_out.find('\n', p_pos);
-            clean = (nl_pos != std::string::npos) ? raw_out.substr(nl_pos + 1) : raw_out.substr(p_pos + 2);
-        } else {
-            size_t glob_pos = raw_out.find("using globbing pattern");
-            clean = (glob_pos != std::string::npos) ? raw_out.substr(glob_pos + 22) : raw_out;
-        }
-    }
-
-    size_t stats_pos = clean.find("[ Prompt:");
-    if (stats_pos != std::string::npos) clean = clean.substr(0, stats_pos);
-    size_t exit_pos = clean.find("Exiting...");
-    if (exit_pos != std::string::npos) clean = clean.substr(0, exit_pos);
-    size_t end_tag_pos = clean.find("<|im_end|>");
-    if (end_tag_pos != std::string::npos) clean = clean.substr(0, end_tag_pos);
-
-    while (!clean.empty() && (clean.front() == '\n' || clean.front() == '\r' || clean.front() == ' ' || clean.front() == '\t' || clean.front() == '"' || clean.front() == '>')) {
-        clean.erase(clean.begin());
-    }
-    while (!clean.empty() && (clean.back() == '\n' || clean.back() == '\r' || clean.back() == ' ' || clean.back() == '\t' || clean.back() == '"')) {
-        clean.pop_back();
-    }
-
-    if (clean.length() < 12) return input_idea;
-    return clean;
+    return enhanced;
 }
 
 std::string GenerateCorrectedPrompt(const std::string& input_idea, int num_threads) {
