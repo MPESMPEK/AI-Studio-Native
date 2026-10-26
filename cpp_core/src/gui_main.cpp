@@ -2949,7 +2949,8 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("+ Pori Kulit", ImVec2(0, 22.0f * s_canvas_zoom))) {
-                    strcat(node.prompt, ", ultra detailed natural skin texture, micro pores");
+                    strcat(node.prompt, ", raw photo, natural skin texture, subtle imperfections, film grain");
+                    strcat(node.neg_prompt, ", cgi, 3d, doll, plastic skin, anime, illustration, airbrushed, cartoon, oversaturated, fake face");
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("+ Sunset", ImVec2(0, 22.0f * s_canvas_zoom))) {
@@ -2958,6 +2959,22 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
                 ImGui::SameLine();
                 if (ImGui::Button("Bersihkan", ImVec2(0, 22.0f * s_canvas_zoom))) {
                     node.prompt[0] = 0;
+                }
+
+                // Tombol Multi-Orang & Anti-AI Plastik
+                if (ImGui::Button("+ 2 Orang (Besties)", ImVec2(0, 22.0f * s_canvas_zoom))) {
+                    node.prompt[0] = 0;
+                    strcpy(node.prompt, "Two gorgeous Indonesian women, best friends standing together smiling outdoors in nature, candid photography, natural skin texture, Canon EOS R5 85mm, 8k uhd");
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("+ Pasangan (Couple)", ImVec2(0, 22.0f * s_canvas_zoom))) {
+                    node.prompt[0] = 0;
+                    strcpy(node.prompt, "Romantic couple, handsome Indonesian young man and beautiful woman hugging outdoors in city park, genuine smile, candid photo, natural daylight, 8k uhd");
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("+ Realistis DSLR", ImVec2(0, 22.0f * s_canvas_zoom))) {
+                    strcat(node.prompt, ", raw unedited candid photo, authentic human facial features, realistic eyes, natural lighting");
+                    strcat(node.neg_prompt, ", cgi, 3d render, doll, plastic skin, anime, illustration, airbrushed, cartoon, oversaturated, fake face, blurry");
                 }
                 ImGui::TextColored(ImVec4(0.22f, 0.74f, 0.97f, 1.0f), "Output: CONDITIONING ->");
             }
