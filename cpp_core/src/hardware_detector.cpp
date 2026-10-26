@@ -164,14 +164,14 @@ HardwareDetectionResult DetectHardwareAndCompatibility() {
             hw.recommended_gpu_layers = 20;
             hw.profile_summary = "NVIDIA Entry (VRAM 4GB): Smart VRAM Offload 20 Layer untuk mencegah Out-Of-Memory (OOM).";
         }
-        hw.compatibility_status = "🚀 Siap Akselerasi Penuh NVIDIA RTX (CUDA & Tensor Cores)";
+        hw.compatibility_status = "[RTX] Siap Akselerasi Penuh NVIDIA RTX (CUDA & Tensor Cores)";
     } else {
         hw.recommended_backend = 0; // CPU AVX2
         hw.recommended_gpu_layers = 0;
         hw.recommended_fast_vae = true; // Wajib di CPU
         hw.recommended_steps = 20;
         hw.profile_summary = "Mode Native CPU (AVX2 + OpenMP): Dioptimalkan khusus prosesor laptop (" + hw.cpu_brand + "). Fast VAE TAESD otomatis aktif untuk memangkas waktu dari 61 detik ke 2.7 detik.";
-        hw.compatibility_status = "⚡ Aktif: Mode CPU Laptop (AVX2 + FMA + TAESD)";
+        hw.compatibility_status = "[CPU] Aktif: Mode CPU Laptop (AVX2 + FMA + TAESD)";
     }
 
     return hw;

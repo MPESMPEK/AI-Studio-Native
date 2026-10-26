@@ -265,10 +265,10 @@ std::string CleanLlamaStreamOutput(const std::string& raw) {
             pos += to.length();
         }
     };
-    replace_all(text, "<think>", "💭 [Pemikiran Logika DeepSeek]:\n");
-    replace_all(text, "</think>", "\n\n💡 [Jawaban]:\n");
-    replace_all(text, "[Start thinking]", "💭 [Pemikiran Logika DeepSeek]:\n");
-    replace_all(text, "[End thinking]", "\n\n💡 [Jawaban]:\n");
+    replace_all(text, "<think>", "[Pemikiran Logika DeepSeek]:\n");
+    replace_all(text, "</think>", "\n\n[Jawaban]:\n");
+    replace_all(text, "[Start thinking]", "[Pemikiran Logika DeepSeek]:\n");
+    replace_all(text, "[End thinking]", "\n\n[Jawaban]:\n");
 
     while (!text.empty() && (text.front() == '\n' || text.front() == '\r' || text.front() == ' ' || text.front() == '\t')) {
         text.erase(text.begin());

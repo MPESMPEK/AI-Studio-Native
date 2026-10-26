@@ -155,6 +155,30 @@ Semua catatan perubahan, perbaikan bug, penambahan fitur, dan perombakan arsitek
 
 ---
 
+## [v1.8.0] - 2026-10-26
+### 💎 Perbaikan Font 100% Anti-Mojibake & Kanvas Studio Node Interaktif (Zoom In/Out + Panning Bebas)
+- **Eliminasi Total Font Mojibake (100% Clean ASCII Modern Badge Typography)**:
+  - Menyelesaikan akar masalah karakter aneh/rusak (`ðŸ§`, `âš¡`, `dYs?`, `dY"`, dll.) yang muncul akibat pemetaan Latin-1 bawaan Dear ImGui terhadap emoji Unicode UTF-8 multi-byte.
+  - Menghapus seluruh karakter emoji mentah dari seluruh file sumber C++ (`gui_main.cpp`, `model_manager.cpp`, `hardware_detector.cpp`, `prompt_engine.cpp`) dan memvalidasi `0 non-ascii bytes` di seluruh codebase `cpp_core/src/`.
+  - Mengganti teks dengan label badge beraksen modern yang bersih, konsisten, dan elegan: `[MODEL] Checkpoint Loader`, `[LoRA] Adaptor & Bobot`, `[PROMPT] Positif & Negatif`, `[CONTROL] ControlNet Canny`, `[SAMPLER] K-Sampler Engine`, `[VAE] Decoder Engine`, `[PREVIEW] Hasil Render Gambar`, `[>] Jalankan Alur Node`, `[MAX]`, `[OK]`, `[!]`, dll.
+  - Mengkalibrasi ukuran baku Segoe UI dari 19.0f menjadi **17.0f** agar tata huruf di seluruh jendela aplikasi tampil tajam, rapi, dan proporsional.
+- **Fitur Zoom In / Zoom Out Kanvas Alur Node Studio (ComfyUI Visual Pipeline)**:
+  - **Skala Zoom Bawaan 85% (`0.85f`)**: Menyusutkan dimensi 3 kolom node secara proporsional sehingga seluruh 7 node muat sempurna di layar tanpa sesak, tanpa bertabrakan, dan tanpa kartu pratinjau yang terpotong.
+  - **Rentang Zoom Luas**: Fleksibel mulai dari 50% (`0.50f`) untuk melihat keseluruhan peta alur kerja, hingga 160% (`1.60f`) untuk melihat teks prompt mikro.
+  - **Zoom Roda Mouse (*Cursor-Centric Mouse Wheel*)**: Memusatkan pembesaran dan pengecilan tepat di titik kursor pengguna.
+  - **Toolbar Zoom Responsif**:
+    - `[-]`: Zoom Out bertahap per 10%.
+    - `[ 85% ]`: Label persentase zoom real-time, klik untuk reset ke 100%.
+    - `[+]`: Zoom In bertahap per 10%.
+    - `[80% Pas]`: Tombol satu-klik untuk melihat seluruh alur node secara ringkas dan pas.
+    - `[Reset Posisi]`: Mengembalikan seluruh 7 node ke tata letak koordinat grid semula.
+- **Fitur Panning Kanvas Tak Terbatas (*Infinite Canvas Pan*)**:
+  - Menggeser (*drag/pan*) seluruh kanvas ke segala arah menggunakan **Klik Tengah Mouse (*Middle Mouse Drag*)** atau **Klik Kanan Mouse (*Right Click Drag*)**.
+  - Latar belakang grid titik/garis berskala dinamis mengikuti translasi pan dan faktor zoom (*infinite parallax grid*).
+  - Skalabilitas presisi pada seluruh pin kabel kurva Bézier kubik menyala, header jendela node, dan teks internal (`SetWindowFontScale`) tanpa pergeseran koordinat (*zero drifting*).
+
+---
+
 ## [v1.6.0] - 2026-10-26
 ### 💎 Penguncian Mutlak Scrollbar Sidebar Kiri & Estetika iOS Liquid Glassmorphism
 - **Penguncian Mutlak Scrollbar Sidebar Kiri (`NoScrollWithMouse` & Zero-Drift Dynamic Sizing)**:

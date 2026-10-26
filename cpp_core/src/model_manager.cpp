@@ -95,7 +95,7 @@ void ScanModelsDirectory() {
                 } else {
                     // File GGUF baru yang ditambahkan oleh pengguna!
                     m.is_custom = true;
-                    m.display_name = "✨ [GGUF] " + fname + " (" + std::to_string(mb) + " MB)";
+                    m.display_name = "[GGUF] " + fname + " (" + std::to_string(mb) + " MB)";
                     m.desc_plus = "Model LLM kustom baru (.gguf) otomatis terdeteksi dari folder models\\Teks_LLM. Kompatibel 100% dengan llama-cli C++.";
                     m.desc_minus = "Kecepatan dan penalaran bergantung pada arsitektur & tingkat kuantisasi model yang Anda tambahkan.";
                     m.rec = "Dapat langsung dipilih untuk percakapan teks, penalaran, atau bantuan koding.";
@@ -132,7 +132,7 @@ void ScanModelsDirectory() {
                     m.full_path = "models\\" + fname;
                     m.size_mb = mb;
                     m.is_custom = true;
-                    m.display_name = "✨ [GGUF] " + fname + " (" + std::to_string(mb) + " MB)";
+                    m.display_name = "[GGUF] " + fname + " (" + std::to_string(mb) + " MB)";
                     m.desc_plus = "Model GGUF terdeteksi dari root folder models\\.";
                     m.desc_minus = "Kecepatan & penalaran bergantung pada spesifikasi model.";
                     m.rec = "Dapat langsung dipilih untuk percakapan teks.";
@@ -197,7 +197,7 @@ void ScanModelsDirectory() {
                         // Model difusi kustom (.safetensors / .gguf)
                         m.is_custom = true;
                         std::string tag = (lower_f.find(".safetensors") != std::string::npos) ? "[Safetensors]" : "[GGUF]";
-                        m.display_name = "🎨 " + tag + " " + fname + " (" + std::to_string(mb) + " MB)";
+                        m.display_name = "" + tag + " " + fname + " (" + std::to_string(mb) + " MB)";
                         m.desc_plus = "Model difusi kustom otomatis terdeteksi. Kompatibel 100% dengan mesin sd-cli C++.";
                         m.desc_minus = "Karakter artistik dan ketajaman bergantung pada checkpoint yang Anda pasang.";
                         m.rec = "Dapat langsung dipilih untuk generasi foto atau mode NSFW.";
@@ -296,18 +296,18 @@ void ScanModelsDirectory() {
                     m.is_custom = false;
 
                     if (lower_f.find("add_detail") != std::string::npos) {
-                        m.display_name = "✨ add_detail (Penajam Pori Kulit & Wajah)";
+                        m.display_name = "add_detail (Penajam Pori Kulit & Wajah)";
                         m.desc_plus = "Meningkatkan ketajaman tekstur mikro kulit, pori-pori, dan iris mata manusia DSLR.";
                         m.desc_minus = "Jika bobot terlalu tinggi (>1.2), gambar bisa sedikit noise.";
                         m.rec = "Sangat direkomendasikan untuk potret realistis (bobot 0.6 - 0.85).";
                     } else if (lower_f.find("lcm") != std::string::npos) {
-                        m.display_name = "⚡ lcm_lora_sd15 (LCM Turbo 4-Step Denoise)";
+                        m.display_name = "lcm_lora_sd15 (LCM Turbo 4-Step Denoise)";
                         m.desc_plus = "Mengubah model difusi SD 1.5 menjadi turbo 4 langkah kilat (~3-5 detik di CPU).";
                         m.desc_minus = "Sedikit penurunan ketajaman dibanding 25 steps standar.";
                         m.rec = "Gunakan saat butuh kecepatan generasi instan.";
                     } else {
                         m.is_custom = true;
-                        m.display_name = "🧩 [LoRA] " + fname + " (" + std::to_string(mb) + " MB)";
+                        m.display_name = "[LoRA] " + fname + " (" + std::to_string(mb) + " MB)";
                         m.desc_plus = "LoRA kustom otomatis terdeteksi.";
                         m.desc_minus = "-";
                         m.rec = "Bisa disetel bobot pengaruhnya pada alur pipa node.";
@@ -334,7 +334,7 @@ void ScanModelsDirectory() {
 
     {
         DetectedModel fast_vae;
-        fast_vae.display_name = "⚡ Fast VAE (TAESD ~2.7s CPU)";
+        fast_vae.display_name = "Fast VAE (TAESD ~2.7s CPU)";
         fast_vae.filename = "taesd.safetensors";
         fast_vae.full_path = "models\\VAE\\taesd.safetensors";
         fast_vae.desc_plus = "Decode latensi sangat rendah: 2.7 detik di CPU (22x lebih kencang dari VAE biasa).";
@@ -377,18 +377,18 @@ void ScanModelsDirectory() {
                 m.is_custom = false;
 
                 if (lower_f.find("mse") != std::string::npos) {
-                    m.display_name = "🎨 vae-ft-mse (SD1.5 High Quality MSE)";
+                    m.display_name = "vae-ft-mse (SD1.5 High Quality MSE)";
                     m.desc_plus = "Warna lembut, akurat, dan gradasi kulit mulus tanpa banding artefak.";
                     m.desc_minus = "Ukuran 334 MB, waktu decode ~15-25 detik di CPU.";
                     m.rec = "Pilihan nomor 1 untuk rendering kualitas tertinggi majalah/DSLR.";
                 } else if (lower_f.find("qwen") != std::string::npos) {
-                    m.display_name = "🔮 qwen_image_2.1_vae (Qwen DiT BF16)";
+                    m.display_name = "qwen_image_2.1_vae (Qwen DiT BF16)";
                     m.desc_plus = "Decoder khusus untuk arsitektur difusi generasi baru DiT.";
                     m.desc_minus = "Hanya untuk model berbasis DiT/Qwen.";
                     m.rec = "Gunakan bersama checkpoint DiT.";
                 } else {
                     m.is_custom = true;
-                    m.display_name = "🧪 [VAE] " + fname + " (" + std::to_string(mb) + " MB)";
+                    m.display_name = "[VAE] " + fname + " (" + std::to_string(mb) + " MB)";
                     m.desc_plus = "VAE kustom otomatis terdeteksi.";
                     m.desc_minus = "-";
                     m.rec = "Dapat langsung dipilih pada Node VAE Decoder.";
@@ -446,13 +446,13 @@ void ScanModelsDirectory() {
                 m.is_custom = false;
 
                 if (lower_f.find("canny") != std::string::npos) {
-                    m.display_name = "🎯 control_sd15_canny (Edge Detection Canny)";
+                    m.display_name = "control_sd15_canny (Edge Detection Canny)";
                     m.desc_plus = "Mengunci garis tepi, postur pose manusia, dan siluet bentuk dari foto acuan.";
                     m.desc_minus = "Memerlukan input foto acuan yang jelas.";
                     m.rec = "Sangat ampuh untuk meniru pose persis dari foto referensi.";
                 } else {
                     m.is_custom = true;
-                    m.display_name = "🎯 [ControlNet] " + fname + " (" + std::to_string(mb) + " MB)";
+                    m.display_name = "[ControlNet] " + fname + " (" + std::to_string(mb) + " MB)";
                     m.desc_plus = "ControlNet kustom otomatis terdeteksi.";
                     m.desc_minus = "-";
                     m.rec = "Dapat langsung dipilih pada Node ControlNet.";
@@ -546,26 +546,26 @@ ModelInspectionResult InspectModelFile(const std::string& filepath) {
     // Evaluasi Dependensi & Penjelasan Konsekuensi
     if (res.category == MODEL_CAT_IMAGE_DIFFUSION) {
         if (GetFileAttributesA("models\\VAE\\taesd.safetensors") != INVALID_FILE_ATTRIBUTES) {
-            res.dependencies_status.push_back("✅ Fast VAE (TAESD): Terpasang di models\\VAE\\taesd.safetensors.");
+            res.dependencies_status.push_back("[OK] Fast VAE (TAESD): Terpasang di models\\VAE\\taesd.safetensors.");
         } else {
-            res.dependencies_status.push_back("⚠️ [Non-Kritis] Fast VAE (taesd.safetensors) belum ada di folder models\\VAE.");
+            res.dependencies_status.push_back("[!] [Non-Kritis] Fast VAE (taesd.safetensors) belum ada di folder models\\VAE.");
             res.consequences.push_back("KONSEKUENSI VAE: Foto tetap bisa digenerasi normal menggunakan VAE standar bawaan model. Namun, tahap decoding akhir gambar di CPU memakan waktu ~1 menit per foto (jika ada TAESD, hanya ~2.7 detik).");
         }
 
         if (lower_fn.find("lcm") != std::string::npos) {
             if (GetFileAttributesA("models\\LoRA\\lcm_lora_sd15.safetensors") != INVALID_FILE_ATTRIBUTES) {
-                res.dependencies_status.push_back("✅ LoRA LCM: Terpasang untuk akselerasi 4-step kilat.");
+                res.dependencies_status.push_back("[OK] LoRA LCM: Terpasang untuk akselerasi 4-step kilat.");
             } else {
-                res.dependencies_status.push_back("ℹ️ [Info] LoRA LCM belum terpasang.");
+                res.dependencies_status.push_back("[i] [Info] LoRA LCM belum terpasang.");
                 res.consequences.push_back("KONSEKUENSI LCM: Model akan berjalan dengan jumlah langkah standar 20 steps (~20 detik di CPU), bukan 4 langkah.");
             }
         }
 
         if (res.file_size_mb > 4000) {
-            res.dependencies_status.push_back("⚠️ [Hardware] Ukuran model di atas 4 GB.");
+            res.dependencies_status.push_back("[!] [Hardware] Ukuran model di atas 4 GB.");
             res.consequences.push_back("KONSEKUENSI RAM: Membutuhkan RAM laptop sekitar 8-12 GB saat proses komputasi difusi. Disarankan menutup aplikasi berat lain saat rendering.");
         } else {
-            res.dependencies_status.push_back("✅ Ukuran model sangat ideal untuk RAM prosesor laptop.");
+            res.dependencies_status.push_back("[OK] Ukuran model sangat ideal untuk RAM prosesor laptop.");
         }
 
         res.recommendation = "Model difusi siap dipasang ke folder models\\Gambar_Diffusion. Otomatis muncul di menu Mode Foto & NSFW.";
@@ -580,26 +580,26 @@ ModelInspectionResult InspectModelFile(const std::string& filepath) {
                 FindClose(hMM);
             }
             if (has_mmproj) {
-                res.dependencies_status.push_back("✅ Vision Projector (mmproj) terdeteksi di models\\Multimodal_Vision.");
+                res.dependencies_status.push_back("[OK] Vision Projector (mmproj) terdeteksi di models\\Multimodal_Vision.");
             } else {
-                res.dependencies_status.push_back("⚠️ [Perhatian] Model ini memiliki kapabilitas Vision (mata), tetapi file pendamping mmproj-*.gguf belum ditemukan.");
+                res.dependencies_status.push_back("[!] [Perhatian] Model ini memiliki kapabilitas Vision (mata), tetapi file pendamping mmproj-*.gguf belum ditemukan.");
                 res.consequences.push_back("KONSEKUENSI VISION: Model tetap bisa diajak mengobrol teks dan koding dengan normal, namun fitur analisis gambar/foto belum bisa aktif hingga file mmproj dipasang.");
             }
         }
 
         if (res.file_size_mb > 5000) {
-            res.dependencies_status.push_back("⚠️ [Hardware] Model LLM besar (> 5 GB). Kecepatan token di CPU berkisar ~5-10 t/s.");
+            res.dependencies_status.push_back("[!] [Hardware] Model LLM besar (> 5 GB). Kecepatan token di CPU berkisar ~5-10 t/s.");
         } else {
-            res.dependencies_status.push_back("✅ Model sangat ringan dan responsif untuk komputasi CPU laptop.");
+            res.dependencies_status.push_back("[OK] Model sangat ringan dan responsif untuk komputasi CPU laptop.");
         }
         res.recommendation = "Model bahasa siap dipasang ke folder models\\Teks_LLM. Otomatis muncul di selector model Chat AI.";
     }
     else if (res.category == MODEL_CAT_LORA) {
-        res.dependencies_status.push_back("✅ LoRA siap dipasang untuk penyesuaian gaya gambar difusi.");
+        res.dependencies_status.push_back("[OK] LoRA siap dipasang untuk penyesuaian gaya gambar difusi.");
         res.recommendation = "File akan disimpan di models\\LoRA dan dapat diaktifkan pada menu opsi difusi.";
     }
     else if (res.category == MODEL_CAT_VAE) {
-        res.dependencies_status.push_back("✅ VAE siap dipasang untuk mempercepat decoding gambar.");
+        res.dependencies_status.push_back("[OK] VAE siap dipasang untuk mempercepat decoding gambar.");
         res.recommendation = "File akan disimpan di models\\VAE.";
     }
 
