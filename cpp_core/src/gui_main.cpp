@@ -2327,12 +2327,13 @@ void RenderFullscreenImageModal(float app_width, float app_height) {
 
 // ================= STATUS BAR TELEMETRI HARDWARE DIRECT3D 11 =================
 void RenderD3D11StatusBar(float app_width, float app_height) {
-    const float bar_height = 28.0f;
+    const float bar_height = 26.0f;
     ImGui::SetCursorPos(ImVec2(0, app_height - bar_height));
 
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.045f, 0.065f, 0.100f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.120f, 0.160f, 0.230f, 1.0f));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f, 5.0f));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.035f, 0.050f, 0.075f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.140f, 0.180f, 0.260f, 1.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f, 4.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
 
     if (ImGui::BeginChild("D3D11StatusBar", ImVec2(app_width, bar_height), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
         HardwareTelemetrySnapshot snap = HardwareTelemetry::Get().GetSnapshot();
@@ -2403,7 +2404,7 @@ void RenderD3D11StatusBar(float app_width, float app_height) {
 
         ImGui::EndChild();
     }
-    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(2);
 }
 
@@ -2576,13 +2577,16 @@ int WINAPI WinMain
         HardwareTelemetry::Get().SetActiveEngineThreads((uint32_t)g_num_threads);
         HardwareTelemetry::Get().SetTAESDActive(g_use_fast_vae);
 
+        const float status_bar_h = 26.0f;
+        const float main_content_h = app_height - status_bar_h - 10.0f; // Ruang pasti di atas status bar
+
         float sidebar_width = 280.0f;
         if (app_width < 800.0f) sidebar_width = 230.0f;
         float right_panel_width = app_width - sidebar_width - 24.0f;
         if (right_panel_width < 280.0f) right_panel_width = 280.0f;
 
-        // ================= 1. SIDEBAR KIRI (FULL HEIGHT) =================
-        ImGui::BeginChild("SidebarPanel", ImVec2(sidebar_width, app_height - 36.0f), true);
+        // ================= 1. SIDEBAR KIRI (FULL HEIGHT DENGAN BATAS STATUS BAR) =================
+        ImGui::BeginChild("SidebarPanel", ImVec2(sidebar_width, main_content_h), true);
 
         // Logo & Brand Header
         ImGui::TextColored(ImVec4(0.22f, 0.74f, 0.97f, 1.0f), "AI STUDIO");
@@ -2594,7 +2598,7 @@ int WINAPI WinMain
         // Tombol Percakapan Baru
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.38f, 0.65f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.50f, 0.82f, 1.0f));
-        if (ImGui::Button("+ Percakapan Baru", ImVec2(-1, 38))) {
+        if (ImGui::Button("+ Percakapan Baru", ImVec2(-1, 34))) {
             CreateNewSession();
         }
         ImGui::PopStyleColor(2);
@@ -2602,9 +2606,13 @@ int WINAPI WinMain
         ImGui::Separator();
         ImGui::Spacing();
 
+        // Hitung tinggi daftar percakapan secara dinamis agar Telemetri & Tombol Pengaturan selalu tampak sempurna!
+        const float sidebar_header_h = 96.0f;
+        const float sidebar_footer_h = 118.0f;
+        float topics_h = main_content_h - sidebar_header_h - sidebar_footer_h;
+        if (topics_h < 75.0f) topics_h = 75.0f;
+
         // Daftar Percakapan / Topics (Scrollable)
-        float topics_h = app_height - 315.0f;
-        if (topics_h < 100.0f) topics_h = 100.0f;
         ImGui::BeginChild("TopicsList", ImVec2(-1, topics_h), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
         for (size_t t = 0; t < g_sessions.size(); t++) {
             bool selected = ((int)t == g_active_session_idx);
@@ -2687,11 +2695,11 @@ int WINAPI WinMain
 
         // Tombol Pengaturan & Outputs di Footer Sidebar
         float footer_btn_w = (sidebar_width - 24.0f) * 0.48f;
-        if (ImGui::Button("Pengaturan", ImVec2(footer_btn_w, 32))) {
+        if (ImGui::Button("Pengaturan", ImVec2(footer_btn_w, 28))) {
             g_show_settings = !g_show_settings;
         }
         ImGui::SameLine();
-        if (ImGui::Button("Output", ImVec2(footer_btn_w, 32))) {
+        if (ImGui::Button("Output", ImVec2(footer_btn_w, 28))) {
             ShellExecuteA(NULL, "open", "outputs", NULL, NULL, SW_SHOWNORMAL);
         }
 
@@ -2759,9 +2767,9 @@ int WINAPI WinMain
         ImGui::SameLine();
 
         float remaining_nav_w = ImGui::GetContentRegionAvail().x;
-        float combo_w = remaining_nav_w - 74.0f;
-        if (combo_w > 280.0f) combo_w = 280.0f;
-        if (combo_w < 150.0f) combo_w = 150.0f;
+        float combo_w = remaining_nav_w - 185.0f;
+        if (combo_w > 240.0f) combo_w = 240.0f;
+        if (combo_w < 130.0f) combo_w = 130.0f;
 
         if (g_selected_mode == 2 || g_selected_mode == 3) {
             ImGui::SetNextItemWidth(combo_w);
@@ -2845,57 +2853,21 @@ int WINAPI WinMain
             ImGui::SameLine();
 
             ImGui::Checkbox("Booster Realistis", &g_nsfw_quality_booster);
-            HelpBadge(
-                "Booster Realistis (Quality Booster)",
-                "Otomatis menyuntikkan token fotografi 8K: natural skin texture, micro pores, beautiful expressive eyes, Canon EOS R5 85mm f/1.4, photorealistic, raw photo ke prompt.",
-                "Hanya menggunakan kata-kata prompt yang Anda ketik secara apa adanya tanpa penambahan kualitas.",
-                "SELALU AKTIFKAN (ON) agar wajah dan tekstur kulit tampak seperti manusia sungguhan dan tidak tampak seperti kartun/3D."
-            );
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Booster Realistis: Otomatis menyuntikkan parameter fotografi 8K, pori-pori kulit alami, dan pencahayaan studio DSLR.");
 
             ImGui::SameLine();
             ImGui::Checkbox("HD Wajah", &g_fullbody_face_fix);
-            HelpBadge(
-                "HD Wajah & Anatomi (Anti-Muka Kabur / Cacat)",
-                "Otomatis menyuntikkan token penajam wajah berbobot tinggi (detailed beautiful face:1.25), (sharp focused eyes:1.25) dan filter negative prompt anti-cacat anatomi (mencegah tangan bercabang, jari berlebih/kurang, dan muka buram/meleleh pada foto Full Body).\nJuga menaikkan sampling ke 25 langkah agar detail mikro mata & jari terbentuk sempurna.",
-                "Hanya menggunakan prompt polos biasa tanpa penyempurnaan anatomi otomatis.",
-                "SELALU AKTIFKAN (ON) terutama saat memilih sudut 'Full Body' agar wajah tetap jernih dan jari tangan utuh 5 sempurna."
-            );
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("HD Wajah: Penajam mata & muka anti-buram pada foto Full Body.");
 
-            ImGui::SameLine();
-            ImGui::Checkbox("Acak Seed", &g_random_seed);
-            HelpBadge(
-                "Acak Seed (Random Variation)",
-                "Setiap kali Anda klik Kirim, AI menggunakan angka seed acak sehingga menghasilkan variasi pose, wajah, dan sudut foto yang selalu berbeda dan segar.",
-                "Mengunci angka seed ke nilai statis. Gambar yang dihasilkan akan selalu sama persis selama prompt dan pengaturannya tidak berubah.",
-                "AKTIFKAN (ON) untuk mengeksplorasi banyak variasi foto. NON-AKTIFKAN jika ingin mereproduksi foto yang sama."
-            );
+            if (right_panel_width > 750.0f) {
+                ImGui::SameLine();
+                ImGui::Checkbox("Fast VAE", &g_use_fast_vae);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Fast VAE (TAESD): Pangkas waktu decode foto menjadi hanya ~2.7 detik.");
 
-            ImGui::SameLine();
-            ImGui::Checkbox("Fast VAE", &g_use_fast_vae);
-            HelpBadge(
-                "Fast VAE (Akselerasi TAESD)",
-                "Menggunakan Tiny AutoEncoder SD. Waktu tahap akhir decoding gambar di CPU dipangkas drastis dari 61 detik menjadi HANYA ~2.7 detik tanpa penurunan kualitas kasat mata.",
-                "Menggunakan VAE standar bawaan yang sangat lambat di CPU (menambah waktu tunggu sekitar 1 menit penuh di setiap generasi).",
-                "SANGAT DIREKOMENDASIKAN SELALU AKTIF (ON) agar generasi foto di laptop Anda cepat selesai."
-            );
-
-            ImGui::SameLine();
-            ImGui::Checkbox("Turbo LCM", &g_turbo_mode);
-            HelpBadge(
-                "Turbo LCM (Akselerasi 4-Step Kilat)",
-                "Proses denoising dipangkas menjadi HANYA 4 LANGKAH (~3-5 detik) dengan otomatis menyertakan LCM LoRA. Sangat cepat untuk membuat sketsa ide atau preview instan.",
-                "Denoising berjalan PENUH 20-30 LANGKAH (CFG 7.0). Menghasilkan ketajaman maksimal, tekstur kulit mikro berpori, bayangan halus, dan mata yang sangat jernih layaknya kamera DSLR.",
-                "NON-AKTIFKAN (OFF) jika Anda ingin hasil fotorealistis terbaik sekelas majalah/DSLR pada model CyberRealistic V5. AKTIFKAN jika butuh hasil cepat dalam hitungan detik."
-            );
-
-            ImGui::SameLine();
-            ImGui::Checkbox("LoRA Realism", &g_use_realism_lora);
-            HelpBadge(
-                "LoRA Realism (Detail Kulit & Wajah Alami)",
-                "Otomatis menyertakan LoRA add_detail (bobot 0.75) untuk tekstur pori-pori kulit, iris mata jernih, dan bayangan tubuh alami tanpa efek plastik.",
-                "Tidak menggunakan LoRA detail tambahan.",
-                "Sangat direkomendasikan selalu AKTIF untuk potret manusia dan mode NSFW realistis."
-            );
+                ImGui::SameLine();
+                ImGui::Checkbox("Turbo LCM", &g_turbo_mode);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Mode Turbo: 4 langkah kilat (~3-5 detik). Matikan untuk 20 langkah DSLR paling tajam.");
+            }
 
             ImGui::EndChild(); // NsfwSubNavbar
             ImGui::PopStyleColor(2);
@@ -3035,18 +3007,18 @@ int WINAPI WinMain
 
         if (g_selected_mode == 0) {
             // TAMPILKAN DASHBOARD CARD HUB (MODERN & RINGAN)
-            float hub_h = app_height - 52.0f;
+            float hub_h = main_content_h - 44.0f;
             RenderDashboardHub(right_panel_width, hub_h);
         } else {
             // B. CHAT CANVAS (Scrollable Area)
             float input_card_h = 0.0f;
-            if (g_has_init_image) input_card_h += 80.0f;
-            if (g_has_attached_doc) input_card_h += 52.0f;
-            float options_bar_h = (g_selected_mode == 2 || g_selected_mode == 3) ? 34.0f : 30.0f;
-            float input_area_h = 62.0f + options_bar_h + input_card_h;
-            const float status_bar_h = 30.0f;
-            float chat_canvas_h = app_height - 44.0f - subbar_h - input_area_h - status_bar_h - 16.0f;
-            if (chat_canvas_h < 120.0f) chat_canvas_h = 120.0f;
+            if (g_has_init_image) input_card_h += 76.0f;
+            if (g_has_attached_doc) input_card_h += 48.0f;
+            bool two_rows_options = (right_panel_width < 680.0f);
+            float options_bar_h = (g_selected_mode == 2 || g_selected_mode == 3) ? (two_rows_options ? 56.0f : 28.0f) : 26.0f;
+            float input_area_h = 50.0f + options_bar_h + input_card_h + 8.0f;
+            float chat_canvas_h = main_content_h - 40.0f - subbar_h - input_area_h - 8.0f;
+            if (chat_canvas_h < 100.0f) chat_canvas_h = 100.0f;
 
             ImGui::BeginChild("ChatCanvas", ImVec2(right_panel_width, chat_canvas_h), true,
                 ImGuiWindowFlags_AlwaysVerticalScrollbar);
@@ -3315,24 +3287,24 @@ int WINAPI WinMain
             ImGui::Spacing();
         }
 
-        float send_btn_w = 85.0f;
+        float send_btn_w = 80.0f;
         float smart_btn_w = 0.0f;
         if (g_selected_mode == 2 || g_selected_mode == 3) {
-            smart_btn_w = 135.0f;
+            smart_btn_w = 125.0f;
         } else {
-            smart_btn_w = 95.0f;
+            smart_btn_w = 90.0f;
         }
 
-        float input_text_w = right_panel_width - send_btn_w - smart_btn_w - 28.0f;
-        if (input_text_w < 220.0f) {
-            input_text_w = right_panel_width - send_btn_w - 18.0f;
+        float input_text_w = right_panel_width - send_btn_w - smart_btn_w - 20.0f;
+        if (input_text_w < 180.0f) {
+            input_text_w = right_panel_width - send_btn_w - 14.0f;
             smart_btn_w = 0.0f;
         }
 
         ImGui::SetNextItemWidth(input_text_w);
         bool enter_pressed = ImGui::InputTextMultiline(
             "##PromptInput", g_input_prompt, sizeof(g_input_prompt),
-            ImVec2(input_text_w, 52),
+            ImVec2(input_text_w, 46),
             ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CtrlEnterForNewLine
         );
 
@@ -3343,13 +3315,13 @@ int WINAPI WinMain
             if (g_selected_mode == 2 || g_selected_mode == 3) {
                 if (g_is_optimizing_prompt.load()) {
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.35f, 0.20f, 0.55f, 1.0f));
-                    ImGui::Button("✨ Berpikir...", ImVec2(smart_btn_w, 52));
+                    ImGui::Button("✨ Berpikir...", ImVec2(smart_btn_w, 46));
                     ImGui::PopStyleColor();
                 } else {
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.45f, 0.18f, 0.72f, 1.0f));
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.58f, 0.24f, 0.90f, 1.0f));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.35f, 0.12f, 0.60f, 1.0f));
-                    if (ImGui::Button("✨ Prompt Pintar", ImVec2(smart_btn_w, 52))) {
+                    if (ImGui::Button("✨ Prompt Pintar", ImVec2(smart_btn_w, 46))) {
                         if (strlen(g_input_prompt) > 0 && !g_is_processing) {
                             g_is_optimizing_prompt.store(true);
                             std::string user_idea = g_input_prompt;
@@ -3375,7 +3347,7 @@ int WINAPI WinMain
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.08f, 0.55f, 0.45f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.12f, 0.70f, 0.58f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.05f, 0.42f, 0.35f, 1.0f));
-                if (ImGui::Button("🎙️ Bicara", ImVec2(smart_btn_w, 52))) {
+                if (ImGui::Button("🎙️ Bicara", ImVec2(smart_btn_w, 46))) {
                     TriggerWindowsVoiceTyping();
                 }
                 if (ImGui::IsItemHovered()) {
@@ -3484,8 +3456,10 @@ int WINAPI WinMain
 
         // ------------------ OPSI KONTEKSTUAL BAWAH ------------------
         if (g_selected_mode == 2 || g_selected_mode == 3) {
-            // MODE DIFUSI FOTO / NSFW (Compact & Anti-Overlap)
-            ImGui::SetNextItemWidth(130.0f);
+            // MODE DIFUSI FOTO / NSFW (Responsif & Anti-Overlap)
+            bool two_rows = (right_panel_width < 680.0f);
+
+            ImGui::SetNextItemWidth(two_rows ? 120.0f : 125.0f);
             ImGui::Combo("##PromptAssistMode", &g_prompt_assist_mode, g_prompt_assist_names, IM_ARRAYSIZE(g_prompt_assist_names));
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip(
@@ -3497,21 +3471,26 @@ int WINAPI WinMain
             }
 
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(100.0f);
+            ImGui::SetNextItemWidth(two_rows ? 95.0f : 95.0f);
             ImGui::Combo("##FramingSelector", &g_framing_idx, g_framing_names, IM_ARRAYSIZE(g_framing_names));
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Sudut Pandang Kamera: Auto, Wajah, 1/2 Badan, Full Body");
 
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(100.0f);
+            ImGui::SetNextItemWidth(two_rows ? 90.0f : 90.0f);
             ImGui::Combo("##ResolutionSelector", &g_resolution_idx, g_resolutions, IM_ARRAYSIZE(g_resolutions));
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rasio Foto: 512x512 (Kotak), 512x768 (Vertikal), 768x512 (Lanskap)");
 
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(90.0f);
+            ImGui::SetNextItemWidth(two_rows ? 85.0f : 85.0f);
             ImGui::SliderInt("##StepsSlider", &g_image_steps, 1, 50, "%d Steps");
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Langkah Sampling (1 - 50 Steps): 4=Kilat LCM, 20=DSLR Seimbang, 30-50=Ultra Mulus");
 
-            ImGui::SameLine();
+            if (two_rows) {
+                ImGui::Spacing();
+            } else {
+                ImGui::SameLine();
+            }
+
             ImGui::Checkbox("HD Wajah", &g_fullbody_face_fix);
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("HD Wajah & Anatomi: Penajam mata & muka anti-buram pada foto Full Body");
 
@@ -3526,10 +3505,8 @@ int WINAPI WinMain
                 if (ImGui::IsItemHovered()) ImGui::SetTooltip("Masukkan Foto Acuan untuk Edit Foto (Image-to-Image) atau ControlNet");
             }
 
-            if (right_panel_width > 860.0f) {
-                ImGui::SameLine();
-                ImGui::TextDisabled("| Enter: Generate");
-            }
+            ImGui::SameLine();
+            ImGui::TextDisabled("| Enter: Generate");
         } else {
             // MODE TEKS (CHAT / AUTO / VIDEO / SUARA)
             if (!g_has_attached_doc) {
