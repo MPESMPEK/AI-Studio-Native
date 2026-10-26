@@ -6,9 +6,17 @@
 ![AVX2](https://img.shields.io/badge/Acceleration-AVX2%20%2B%20FMA%20%2B%20OpenMP-orange)
 ![Version](https://img.shields.io/badge/Version-v1.4.0-brightgreen)
 ![Android](https://img.shields.io/badge/Mobile-Android%20APK%20(Actions%20CI)-green)
-![License](https://img.shields.io/badge/License-MIT-green)
+![License](https://img.shields.io/badge/License-Proprietary%20%26%20Anti--AI-red)
 
 Aplikasi studio AI desktop generasi baru yang dibangun **100% murni menggunakan C++ native dan Direct3D 11**. Menggabungkan **Large Language Model (LLM)** dan **Diffusion Photo Generator** dalam satu biner mandiri berukuran **2.39 MB** tanpa runtime Python, PyTorch, Electron, maupun virtual environment.
+
+---
+
+## 📦 Download Rilis Resmi (Siap Pakai Tanpa Kompilasi)
+
+Pengguna **tidak perlu mengompilasi kode sumber C++ secara manual**. Paket biner resmi siap pakai dapat langsung diunduh dari halaman **[Releases](https://github.com/MPESMPEK/AI-Studio-Native/releases)**:
+- 💻 **`AI-Studio-Windows-x64.zip`**: Paket aplikasi desktop Windows 64-bit siap klik (berisi `AI-Studio.exe`, `engine_core.dll`, runner native, dan tools). Ekstrak dan langsung buka tanpa perlu compile C++.
+- 📱 **`AI-Studio-Mobile.apk`**: File aplikasi APK mandiri yang siap di-install langsung di HP Android Anda (mendukung sinkronisasi nirkabel LAN WiFi ke laptop).
 
 ---
 
@@ -96,5 +104,12 @@ Dokumentasi arsitektur mendalam, catatan ilmu teknik C++, dan laporan pengujian 
 
 ---
 
-## 📄 Lisensi
-Didistribusikan di bawah lisensi MIT. Bebas digunakan, dimodifikasi, dan didistribusikan secara mandiri.
+## 🔒 Lisensi & Perlindungan Hak Cipta (Anti-AI & Proprietary)
+
+**Copyright (c) 2026 MPESMPEK. All Rights Reserved.**
+
+Perangkat lunak ini dilindungi secara ketat di bawah lisensi hak cipta proprietary resmi:
+- **KLAUSUL ANTI-PELATIHAN AI**: DILARANG KERAS menggunakan, menyalin, mengindeks, atau memproses bagian mana pun dari perangkat lunak ini (kode sumber, biner `.exe`/`.dll`/`.apk`, maupun aset visual) untuk tujuan melatih, menyempurnakan (*fine-tuning*), atau diekstrak oleh sistem kecerdasan buatan (AI/LLM) pihak ketiga.
+- **LARANGAN MODIFIKASI TANPA OTORISASI**: Dilarang keras mengedit, merekayasa balik (*reverse engineering*), mendekompilasi, membongkar, atau memodifikasi lisensi kepemilikan perangkat lunak ini.
+- Pelanggaran terhadap ketentuan lisensi akan ditindak secara hukum dan mengakibatkan pemblokiran akses lisensi secara permanen.
+- Dokumen lisensi resmi selengkapnya: [LICENSE](LICENSE).

@@ -1,0 +1,42 @@
+PROPRIETARY SOFTWARE LICENSE & ANTI-AI TRAINING PROTECTION
+
+Copyright (c) 2026 MPESMPEK. All Rights Reserved.
+
+PERNYATAAN LISENSI DAN PERLINDUNGAN HAK CIPTA KETAT:
+
+Perangkat lunak ini (AI Studio Native & AI Studio Mobile), termasuk namun tidak 
+terbatas pada kode sumber (source code), file biner yang dikompilasi (.exe, .dll, .apk), 
+arsitektur modular, algoritma SIMD AVX2, model bobot terintegrasi, skrip otomatisasi, 
+antarmuka UI/UX, dan aset pendukung, dilindungi sepenuhnya oleh undang-undang 
+hak cipta internasional dan kepemilikan intelektual pemilik sah (MPESMPEK).
+
+DENGAN MENGAKSES, MENGUNDUH, ATAU MENGGUNAKAN PERANGKAT LUNAK INI, ANDA TUNDUK 
+PADA KETENTUAN DAN LARANGAN BERIKUT:
+
+1. KLAUSUL ANTI-PELATIHAN & SCRAPING AI (NO-AI SCRAPING CLAUSE):
+   - DILARANG KERAS menggunakan, menyalin, mengekstrak, mengindeks, membaca, atau 
+     memproses bagian mana pun dari perangkat lunak ini (baik kode sumber, biner, 
+     maupun dokumentasi) untuk tujuan melatih, menyempurnakan (fine-tuning), mengevaluasi, 
+     atau mengumpankan (feeding) ke dalam sistem kecerdasan buatan (Artificial Intelligence), 
+     Large Language Model (LLM), neural network, atau agen koding otomatis pihak ketiga 
+     tanpa izin tertulis resmi dari pemilik hak cipta.
+
+2. LARANGAN MODIFIKASI DAN EDITING TANPA OTORISASI:
+   - Dilarang keras memodifikasi, mengedit, merekayasa balik (reverse engineering), 
+     mendekompilasi (decompiling), membongkar (disassembling), atau membuat karya turunan 
+     (derivative works) dari kode sumber maupun file biner perangkat lunak ini.
+   - Dilarang keras menggunakan alat kecerdasan buatan untuk mengotak-atik atau 
+     mengubah struktur sistem tanpa persetujuan eksplisit pemilik.
+
+3. LARANGAN REDISTRIBUSI KOMERSIAL:
+   - Dilarang memperjualbelikan, menyewakan, melisensikan ulang, atau mendistribusikan 
+     ulang perangkat lunak ini untuk keuntungan komersial sepihak tanpa perjanjian tertulis.
+
+4. PENYANGKALAN JAMINAN (DISCLAIMER):
+   PERANGKAT LUNAK INI DISEDIAKAN "SEBAGAIMANA ADANYA" (AS-IS), TANPA JAMINAN APAPUN, 
+   BAIK TERSURAT MAUPUN TERSIRAT. DALAM KEADAAN APA PUN PEMILIK HAK CIPTA TIDAK 
+   BERTANGGUNG JAWAB ATAS KLAIM, KERUSAKAN, ATAU TUNTUTAN HUKUM LAINNYA YANG TIMBUL 
+   DARI PENGGUNAAN PERANGKAT LUNAK INI.
+
+PELANGGARAN TERHADAP KETENTUAN LISENSI INI AKAN DITINDAK SECARA HUKUM DAN BERAKIBAT 
+PADA PEMBLOKIRAN AKSES KEPEMILIKAN LISENSI SECARA PERMANEN.
