@@ -216,25 +216,36 @@ std::string CleanLlamaStreamOutput(const std::string& raw) {
     if (raw.empty()) return "";
     std::string text = raw;
 
-    size_t last_prompt_arrow = text.rfind("\n> ");
-    if (last_prompt_arrow == std::string::npos && text.rfind("> ") == 0) {
-        last_prompt_arrow = 0;
-    }
-    if (last_prompt_arrow != std::string::npos) {
-        size_t after_arrow = (last_prompt_arrow == 0) ? 2 : last_prompt_arrow + 3;
-        size_t next_nl = text.find('\n', after_arrow);
+    // 1. Bersihkan banner bantuan interaktif llama-cli jika ada
+    size_t glob_pos = text.find("using globbing pattern");
+    if (glob_pos != std::string::npos) {
+        size_t next_nl = text.find('\n', glob_pos);
         if (next_nl != std::string::npos) {
             text = text.substr(next_nl + 1);
-        } else {
-            text = "";
         }
-    } else {
-        size_t glob_pos = text.find("using globbing pattern");
-        if (glob_pos != std::string::npos) {
-            size_t next_nl = text.find('\n', glob_pos);
-            if (next_nl != std::string::npos) {
-                text = text.substr(next_nl + 1);
+    }
+    size_t glob_hdr = text.find("/glob <pattern>");
+    if (glob_hdr != std::string::npos) {
+        size_t next_nl = text.find('\n', glob_hdr);
+        if (next_nl != std::string::npos) {
+            text = text.substr(next_nl + 1);
+        }
+    }
+
+    // 2. Bersihkan baris echo prompt pengguna yang diawali tanda '> '
+    while (!text.empty()) {
+        while (!text.empty() && (text.front() == '\n' || text.front() == '\r' || text.front() == ' ' || text.front() == '\t')) {
+            text.erase(text.begin());
+        }
+        if (text.rfind("> ", 0) == 0) {
+            size_t nl = text.find('\n');
+            if (nl != std::string::npos) {
+                text = text.substr(nl + 1);
+            } else {
+                text = "";
             }
+        } else {
+            break;
         }
     }
 
