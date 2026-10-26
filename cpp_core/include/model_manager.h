@@ -27,7 +27,9 @@ enum ModelCategory {
     MODEL_CAT_IMAGE_DIFFUSION,
     MODEL_CAT_VISION_MULTIMODAL,
     MODEL_CAT_VAE,
-    MODEL_CAT_LORA
+    MODEL_CAT_LORA,
+    MODEL_CAT_CONTROLNET,
+    MODEL_CAT_AUDIO
 };
 
 // Hasil Inspeksi File Model Baru
@@ -57,6 +59,24 @@ extern std::vector<std::string> g_detected_llm_labels;
 extern std::vector<std::string> g_detected_photo_labels;
 extern std::vector<const char*> g_llm_items;
 extern std::vector<const char*> g_photo_items;
+
+// Container Global LoRA, VAE & ControlNet (Studio Node Native)
+extern std::vector<DetectedModel> g_detected_loras;
+extern std::vector<DetectedModel> g_detected_vaes;
+extern std::vector<DetectedModel> g_detected_cnets;
+extern std::vector<std::string> g_detected_lora_labels;
+extern std::vector<std::string> g_detected_vae_labels;
+extern std::vector<std::string> g_detected_cnet_labels;
+extern std::vector<const char*> g_lora_items;
+extern std::vector<const char*> g_vae_items;
+extern std::vector<const char*> g_cnet_items;
+
+// State Pilihan Model untuk Studio Node & Pipeline
+extern int g_selected_lora_idx;
+extern float g_selected_lora_strength;
+extern int g_selected_vae_idx;
+extern int g_selected_cnet_idx;
+extern float g_selected_cnet_strength;
 
 // State Modal Import & Hapus
 extern bool g_show_import_modal;

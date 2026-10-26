@@ -148,4 +148,37 @@ Tersedia melalui dropdown di Modal Pengaturan (`[⚙️ Pengaturan]` -> `Pengelo
 
 ---
 
+## 7. Studio Alur Node (ComfyUI Visual Pipeline C++ Native)
+
+Mode khusus ini mengadaptasi fleksibilitas alur kerja visual node (seperti ComfyUI) langsung ke dalam antarmuka desktop Pure C++ Direct3D 11 dengan performa 60 FPS tanpa beban interpreter Python maupun PyTorch.
+
+### A. Fitur Inti Studio Node
+1. **7 Node Interaktif Mandiri**:
+   - `🧠 Model Checkpoint Loader`: Pemilihan checkpoint difusi format `.safetensors` atau `.gguf` (CyberRealistic V5, Realistic Vision V5.1, DreamShaper LCM).
+   - `🧩 LoRA Loader & Bobot`: Pemilihan adaptor LoRA (`add_detail.safetensors`, `lcm_lora_sd15.safetensors`) dengan slider bobot pengaruh (0.10 - 1.50).
+   - `📝 Prompt Conditioning Engine`: Editor teks prompt positif dan negative prompt dengan tombol injeksi token cepat (`[+ 8K DSLR]`, `[+ Pori Kulit]`, `[+ Golden Hour]`).
+   - `🎯 ControlNet Canny (Pose Lock)`: Pemilihan foto acuan pose tubuh dan slider kekuatan panduan garis tepi (0.10 - 1.00).
+   - `🎛️ K-Sampler Engine`: Pemilihan algoritma sampling (Euler Ancestral, DPM++ 2M, LCM, Euler), steps (4-50), CFG Scale (1.0-15.0), seed, dan rasio resolusi.
+   - `⚡ VAE Decoder Engine`: Pemilihan Fast VAE TAESD (~2.7s CPU) atau MSE High Quality VAE (~25s CPU).
+   - `🖼️ Image Output Preview & Export`: Penampil gambar hasil render beresolusi tinggi, live progress denoising, perbesar layar penuh, dan ekspor berkas.
+
+2. **Kabel Bézier Menyala (Glowing Bézier Cables)**:
+   - Dihitung secara real-time via `DrawGlowingBezier()` dengan dua lapisan render:
+     - Lapisan luar (*halo glow*): `AddBezierCubic()` dengan alpha lembut 0.22f dan ketebalan 6.5f.
+     - Lapisan inti (*core cable*): `AddBezierCubic()` warna solid 2.5f.
+   - Warna kabel sesuai kategori pin:
+     - 🟣 **Model (Ungu Neon)**: Pin Checkpoint & Pin Masukan LoRA.
+     - 🟠 **LoRA / Model Out (Amber/Oranye)**: Pin Keluaran LoRA ke K-Sampler.
+     - 🔵 **Conditioning (Biru Langit)**: Pin Keluaran Prompt ke K-Sampler.
+     - 🔴 **ControlNet (Rose Crimson)**: Pin Panduan Pose ke K-Sampler.
+     - 🟢 **Latent (Zamrud Emerald)**: Pin Keluaran Latent K-Sampler ke VAE.
+     - 🔷 **Image (Cyan Neon)**: Pin Keluaran Gambar VAE ke Preview.
+
+3. **Draggable Node Header & Canvas Grid**:
+   - Pengguna dapat menggeser setiap node secara bebas dengan drag header.
+   - Tombol `[🔄 Reset Posisi]` mengembalikan seluruh tata letak ke formasi modular rapi dalam satu klik.
+   - Tombol `[▶️ Jalankan Alur Node]` memicu komputasi inferensi C++ native seketika.
+
+---
+
 *Dokumen ini merupakan bagian dari standar arsitektur resmi AI Studio Native v1.5.3.*

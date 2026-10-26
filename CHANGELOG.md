@@ -264,6 +264,39 @@ Semua catatan perubahan, perbaikan bug, penambahan fitur, dan perombakan arsitek
 
 ---
 
+## [v1.5.0] - 2026-10-26
+### ✨ Fitur Baru (Studio Node Alur Visual ComfyUI Native C++, Dynamic Multi-Model Scanning & AI Real Covers)
+- **Mode Khusus Studio Node (ComfyUI-Style Visual Pipeline Pure C++ Native)**:
+  - Menu tab baru `"Studio Node"` di Top Navbar dan Kartu ke-5 di Dashboard Hub.
+  - Alur visual pipa (Node Graph) dengan 7 Node Interaktif:
+    1. **🧠 Model Checkpoint Loader**: Pindai dan pilih Checkpoint difusi format `.safetensors` atau `.gguf` (CyberRealistic V5, Realistic Vision V5.1, DreamShaper LCM) lengkap dengan status arsitektur & kapasitas memori.
+    2. **🧩 LoRA Loader & Bobot**: Pindai dinamis direktori `models/LoRA/`, pilih adaptor LoRA (`add_detail.safetensors`, `lcm_lora_sd15.safetensors`, atau LoRA kustom), serta slider bobot (*strength*) dari 0.10 hingga 1.50.
+    3. **📝 Prompt Conditioning Engine**: Editor prompt positif bertingkat multiline, input negative prompt anti-cacat anatomi, quick style injection chips (`[+ 8K DSLR]`, `[+ Pori Kulit]`, `[+ Golden Hour]`), serta tombol pembersih prompt.
+    4. **🎯 ControlNet Canny (Pose Lock)**: Pindai dinamis direktori `models/ControlNet/`, pemilihan foto acuan pose manusia via file picker native, serta slider kekuatan kendali (*control strength*) dari 0.10 hingga 1.00.
+    5. **🎛️ K-Sampler Engine**: Pemilihan algoritma sampling (*Euler Ancestral*, *DPM++ 2M Karras*, *LCM Fast 4-Step*, *Euler Standar*), denoising steps (4 hingga 50 langkah), CFG Scale kepatuhan prompt (1.0 hingga 15.0), seed acak/terkunci, serta rasio resolusi dinamis (512x512, 512x768, 768x512, 1024x1024).
+    6. **⚡ VAE Decoder Engine**: Pindai dinamis direktori `models/VAE/`, pilihan Fast VAE TAESD (~2.7 detik CPU) atau MSE High Quality VAE (~25 detik CPU) atau VAE bawaan checkpoint.
+    7. **🖼️ Image Output Preview & Export**: Tampilan hasil render gambar resolusi tinggi langsung di dalam node, indikator live progress dan estimasi waktu, tombol perbesar layar penuh (*fullscreen viewer*), buka berkas, dan buka folder `outputs/`.
+  - **Kabel Bézier Menyala (Glowing Bézier Cables)**: Render dinamis kabel kurva kubik Bézier (`DrawGlowingBezier`) menghubungkan pin input/output dengan aksen warna neon per kategori (Ungu untuk Model, Amber untuk LoRA, Biru Langit untuk Prompt, Rose untuk ControlNet, Zamrud untuk Latent, dan Cyan untuk Gambar Akhir).
+  - **Draggable Node Header**: Setiap kartu node dapat digeser dan ditata bebas oleh pengguna menggunakan kursor mouse pada canvas grid, dengan tombol `[🔄 Reset Posisi]` untuk mengembalikan tata letak standar dalam satu klik.
+  - **Preset Alur Cepat**:
+    - `📸 DSLR 8K Potret` (CyberRealistic + add_detail + MSE VAE)
+    - `⚡ Ultra Fast 4-Step` (DreamShaper LCM + TAESD ~3.5 detik)
+    - `🎯 ControlNet Canny Pose-Lock` (CyberRealistic + Canny Edge)
+    - `🔮 Kustom Mandiri` (Bebas rangkai node)
+- **Scanning Dinamis Seluruh Tipe Model AI**:
+  - `models/LoRA/*.safetensors` & `*.gguf`: Otomatis terdeteksi dan masuk ke dropdown LoRA.
+  - `models/VAE/*.safetensors`: Otomatis terdeteksi dan masuk ke dropdown VAE.
+  - `models/ControlNet/*.safetensors`: Otomatis terdeteksi dan masuk ke dropdown ControlNet.
+  - Terintegrasi langsung dengan mesin eksekusi `sd-cli.exe` C++ native tanpa dependensi Python runtime.
+- **Cover Visual Gemini AI Resmi untuk Katalog Mode**:
+  - 4 file gambar cover fotorealistis & holografis beresolusi tinggi otomatis termuat saat aplikasi dijalankan:
+    - `assets/covers/cover_chat_llm.jpg` (Holographic Neural Interface - Chat LLM & Koding)
+    - `assets/covers/cover_photo_studio.jpg` (DSLR 85mm Golden Hour Portrait - Studio Foto)
+    - `assets/covers/cover_nsfw_studio.jpg` (Glamour Sensual Model Portrait - Dewasa 18+ Uncensored)
+    - `assets/covers/cover_studio_node.jpg` (Cyber Glass Nodes & Neon Cables - Studio Node)
+
+---
+
 ## [v1.4.1] - 2026-10-26
 ### ✨ Fitur Baru (Inisialisasi Otomatis Folder Model AI & Impor File di Android)
 - **Auto-Initialization Folder Model AI di Penyimpanan HP (initAIStudioFolders)**:

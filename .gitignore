@@ -41,8 +41,11 @@ history/
 *.jpeg
 *.webp
 *.mp4
+!assets/covers/*.jpg
+!assets/covers/*.png
 
-# 5. File Sampah OS
+# 5. File Sampah OS & Binary Sementara
+AI-Studio-Running.exe
 Thumbs.db
 ehthumbs.db
 Desktop.ini

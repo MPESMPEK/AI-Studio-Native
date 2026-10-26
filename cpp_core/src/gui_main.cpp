@@ -1,4 +1,4 @@
-#define WIN32_LEAN_AND_MEAN
+﻿#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shellapi.h>
 #include <commdlg.h>
@@ -1124,8 +1124,17 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
             }
         }
 
-        // LoRA Realisme Kulit & Wajah Alami (add_detail)
-        if (g_use_realism_lora && GetFileAttributesA("models\\LoRA\\add_detail.safetensors") != INVALID_FILE_ATTRIBUTES) {
+        // LoRA Terpilih dari Alur Node atau Dropdown
+        if (g_selected_lora_idx > 0 && g_selected_lora_idx < (int)g_detected_loras.size()) {
+            std::string lfile = g_detected_loras[g_selected_lora_idx].filename;
+            size_t dot_pos = lfile.find_last_of('.');
+            std::string lname = (dot_pos != std::string::npos) ? lfile.substr(0, dot_pos) : lfile;
+            char lbuf[128];
+            snprintf(lbuf, sizeof(lbuf), " <lora:%s:%.2f>", lname.c_str(), g_selected_lora_strength);
+            if (final_safe_prompt.find(lname) == std::string::npos) {
+                final_safe_prompt += lbuf;
+            }
+        } else if (g_use_realism_lora && GetFileAttributesA("models\\LoRA\\add_detail.safetensors") != INVALID_FILE_ATTRIBUTES) {
             if (final_safe_prompt.find("add_detail") == std::string::npos) {
                 char lbuf[64];
                 snprintf(lbuf, sizeof(lbuf), " <lora:add_detail:%.2f>", g_realism_lora_strength);
@@ -1158,6 +1167,9 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
         std::string img2img_arg = "";
         if (!init_img_path.empty() && GetFileAttributesA(init_img_path.c_str()) != INVALID_FILE_ATTRIBUTES) {
             std::string cnet_model = "models\\ControlNet\\control_sd15_canny.safetensors";
+            if (g_selected_cnet_idx > 0 && g_selected_cnet_idx < (int)g_detected_cnets.size()) {
+                cnet_model = g_detected_cnets[g_selected_cnet_idx].full_path;
+            }
             if (use_controlnet && GetFileAttributesA(cnet_model.c_str()) != INVALID_FILE_ATTRIBUTES) {
                 char cbuf[700];
                 snprintf(cbuf, sizeof(cbuf), "--control-net \"%s\" --control-image \"%s\" --image-preprocess target=control,canny=true --control-strength %.2f",
@@ -1195,7 +1207,16 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
             );
         } else {
             std::string vae_arg = "";
-            if (g_use_fast_vae && GetFileAttributesA("models\\VAE\\taesd.safetensors") != INVALID_FILE_ATTRIBUTES) {
+            if (g_selected_vae_idx >= 0 && g_selected_vae_idx < (int)g_detected_vaes.size()) {
+                std::string vpath = g_detected_vaes[g_selected_vae_idx].full_path;
+                if (!vpath.empty() && GetFileAttributesA(vpath.c_str()) != INVALID_FILE_ATTRIBUTES) {
+                    if (vpath.find("taesd") != std::string::npos) {
+                        vae_arg = "--taesd \"" + vpath + "\"";
+                    } else {
+                        vae_arg = "--vae \"" + vpath + "\"";
+                    }
+                }
+            } else if (g_use_fast_vae && GetFileAttributesA("models\\VAE\\taesd.safetensors") != INVALID_FILE_ATTRIBUTES) {
                 vae_arg = "--taesd \"models\\VAE\\taesd.safetensors\"";
             } else if (GetFileAttributesA("models\\VAE\\vae-ft-mse-840000-ema-pruned.safetensors") != INVALID_FILE_ATTRIBUTES) {
                 vae_arg = "--vae \"models\\VAE\\vae-ft-mse-840000-ema-pruned.safetensors\"";
@@ -1777,6 +1798,7 @@ static ID3D11ShaderResourceView* g_hub_custom_tex_chat = NULL;
 static ID3D11ShaderResourceView* g_hub_custom_tex_photo = NULL;
 static ID3D11ShaderResourceView* g_hub_custom_tex_nsfw  = NULL;
 static ID3D11ShaderResourceView* g_hub_custom_tex_voice = NULL;
+static ID3D11ShaderResourceView* g_hub_custom_tex_node  = NULL;
 
 static void SetCardCover(int target_mode, const std::string& path) {
     if (!g_pd3dDevice || path.empty()) return;
@@ -1796,6 +1818,9 @@ static void SetCardCover(int target_mode, const std::string& path) {
     } else if (target_mode == 5) {
         if (g_hub_custom_tex_voice) g_hub_custom_tex_voice->Release();
         g_hub_custom_tex_voice = tex;
+    } else if (target_mode == 6) {
+        if (g_hub_custom_tex_node) g_hub_custom_tex_node->Release();
+        g_hub_custom_tex_node = tex;
     }
 }
 
@@ -1805,7 +1830,8 @@ enum CardCategoryTheme {
     CARD_THEME_CHAT = 0,   // Cyan   (Chat AI & Koding)
     CARD_THEME_PHOTO,      // Green  (Studio Foto Diffusion)
     CARD_THEME_ADULT,      // Red    (Dewasa 18+ Uncensored)
-    CARD_THEME_VOICE       // Purple (Suara Manusia & TTS)
+    CARD_THEME_VOICE,      // Purple (Suara Manusia & TTS)
+    CARD_THEME_NODE        // Violet (Studio Alur Node C++ Native)
 };
 
 /**
@@ -1868,6 +1894,10 @@ static bool DrawDashboardCard(
         case CARD_THEME_ADULT:
             accent_color = ImVec4(0.96f, 0.25f, 0.37f, 1.0f); // Rose #f43f5e
             category_label = "DEWASA (18+ UNCENSORED)";
+            break;
+        case CARD_THEME_NODE:
+            accent_color = ImVec4(0.70f, 0.35f, 0.98f, 1.0f); // Electric Violet #a855f7
+            category_label = "STUDIO ALUR NODE (VISUAL PIPELINE)";
             break;
         case CARD_THEME_VOICE:
         default:
@@ -2013,6 +2043,651 @@ static bool DrawDashboardCard(
     return pressed;
 }
 
+// ==================== COMFYUI-STYLE STUDIO ALUR NODE (PURE C++ NATIVE) ====================
+static void DrawGlowingBezier(ImDrawList* draw_list, ImVec2 p1, ImVec2 p2, ImU32 col, float thickness = 2.5f) {
+    float dist = fabsf(p2.x - p1.x) * 0.5f;
+    if (dist < 40.0f) dist = 40.0f;
+    ImVec2 cp1(p1.x + dist, p1.y);
+    ImVec2 cp2(p2.x - dist, p2.y);
+    ImVec4 col_v = ImGui::ColorConvertU32ToFloat4(col);
+    // Outer halo glow
+    draw_list->AddBezierCubic(p1, cp1, cp2, p2, ImColor(col_v.x, col_v.y, col_v.z, 0.22f), thickness + 4.0f);
+    // Mid core
+    draw_list->AddBezierCubic(p1, cp1, cp2, p2, col, thickness);
+}
+
+// State persistensi alur pipa node
+static ImVec2 s_node_pos[7] = {
+    ImVec2(20.0f,  20.0f),   // Node 0: Checkpoint Loader (w=280, h=175)
+    ImVec2(20.0f,  215.0f),  // Node 1: LoRA Loader (w=280, h=175)
+    ImVec2(320.0f, 20.0f),   // Node 2: Prompt Engine Positif & Negatif (w=360, h=240)
+    ImVec2(20.0f,  410.0f),  // Node 3: ControlNet Canny (w=280, h=185)
+    ImVec2(320.0f, 280.0f),  // Node 4: K-Sampler Engine (w=360, h=330)
+    ImVec2(700.0f, 20.0f),   // Node 5: VAE Decoder (w=270, h=165)
+    ImVec2(700.0f, 205.0f)   // Node 6: Image Output Preview (w=380, h=480)
+};
+
+static char s_node_prompt[1024] = "Close-up portrait of a gorgeous Indonesian woman smiling outdoors in nature, golden hour warm lighting, natural skin pores, Canon EOS R5 85mm f/1.4, 8k uhd photorealistic";
+static char s_node_neg_prompt[512] = "blurry, bad anatomy, bad hands, deformed, disfigured, lowres, watermark, extra limbs";
+static int  s_node_preset_idx = 0;
+static bool s_node_cnet_enabled = false;
+static char s_node_cnet_img_path[MAX_PATH] = "";
+static int  s_node_steps = 20;
+static float s_node_cfg = 7.0f;
+static int  s_node_seed = 42;
+static bool s_node_random_seed = true;
+static int  s_node_res_idx = 1; // 0: 512x512, 1: 512x768, 2: 768x512, 3: 1024x1024
+static int  s_node_sampler_idx = 0; // 0: Euler a, 1: DPM++ 2M, 2: LCM, 3: Euler
+
+static void ApplyNodePreset(int preset_id) {
+    if (preset_id == 0) {
+        // Preset DSLR 8K Potret
+        g_selected_photo = 0;
+        g_selected_lora_idx = (g_detected_loras.size() > 1) ? 1 : 0; // add_detail
+        g_selected_lora_strength = 0.75f;
+        g_selected_vae_idx = 0; // Fast VAE / MSE
+        s_node_cnet_enabled = false;
+        s_node_steps = 20;
+        s_node_cfg = 7.0f;
+        s_node_res_idx = 1; // 512x768
+        s_node_sampler_idx = 0; // Euler a
+        strcpy(s_node_prompt, "Close-up portrait of a gorgeous Indonesian woman smiling outdoors in nature, golden hour warm lighting, natural skin pores, Canon EOS R5 85mm f/1.4, 8k uhd photorealistic");
+    } else if (preset_id == 1) {
+        // Preset Ultra Fast 4-Step LCM
+        for (size_t i = 0; i < g_detected_photos.size(); i++) {
+            if (g_detected_photos[i].filename.find("Dream") != std::string::npos || g_detected_photos[i].filename.find("LCM") != std::string::npos) {
+                g_selected_photo = (int)i;
+                break;
+            }
+        }
+        for (size_t i = 0; i < g_detected_loras.size(); i++) {
+            if (g_detected_loras[i].filename.find("lcm") != std::string::npos) {
+                g_selected_lora_idx = (int)i;
+                break;
+            }
+        }
+        g_selected_lora_strength = 1.0f;
+        g_selected_vae_idx = 0; // TAESD Fast VAE
+        s_node_cnet_enabled = false;
+        s_node_steps = 4;
+        s_node_cfg = 2.0f;
+        s_node_res_idx = 0; // 512x512
+        s_node_sampler_idx = 2; // LCM
+        strcpy(s_node_prompt, "Cyberpunk neon street at rainy night, vibrant glowing holographic signs, reflections on wet asphalt, cinematic lighting, 8k");
+    } else if (preset_id == 2) {
+        // Preset ControlNet Canny Pose-Lock
+        g_selected_photo = 0;
+        g_selected_lora_idx = 1;
+        g_selected_lora_strength = 0.65f;
+        g_selected_vae_idx = 0;
+        s_node_cnet_enabled = true;
+        g_selected_cnet_idx = (g_detected_cnets.size() > 1) ? 1 : 0;
+        g_selected_cnet_strength = 0.90f;
+        s_node_steps = 20;
+        s_node_cfg = 7.0f;
+        s_node_res_idx = 0;
+        s_node_sampler_idx = 0;
+        strcpy(s_node_prompt, "Studio portrait matching the pose and contour lines of reference image, soft dramatic studio lighting, sharp focus, 8k uhd");
+    }
+}
+
+static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
+    ImGui::BeginChild("NodeCanvasRoot", ImVec2(panel_w, panel_h), false, ImGuiWindowFlags_NoScrollbar);
+
+    // 1. TOP SUBBAR PIPELINE & RUN BUTTON
+    {
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.065f, 0.095f, 0.155f, 0.95f));
+        ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.350f, 0.220f, 0.650f, 0.70f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+        ImGui::BeginChild("NodeTopBar", ImVec2(panel_w - 4.0f, 38.0f), true, ImGuiWindowFlags_NoScrollbar);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextColored(ImVec4(0.70f, 0.40f, 0.98f, 1.0f), "âš¡ PRESET ALUR:");
+        ImGui::SameLine();
+
+        static const char* s_presets[] = {
+            "ðŸ“¸ DSLR 8K Potret (CyberRealistic + LoRA Detail + MSE VAE)",
+            "âš¡ Ultra Fast 4-Step (DreamShaper LCM + TAESD ~3.5s)",
+            "ðŸŽ¯ ControlNet Canny Pose-Lock (Garis Tepi & Siluet)",
+            "ðŸ”® Kustom Mandiri (Bebas Pasang Node)"
+        };
+        ImGui::SetNextItemWidth(310.0f);
+        if (ImGui::Combo("##NodePresetCombo", &s_node_preset_idx, s_presets, IM_ARRAYSIZE(s_presets))) {
+            ApplyNodePreset(s_node_preset_idx);
+        }
+
+        ImGui::SameLine();
+        ImGui::TextDisabled("|");
+        ImGui::SameLine();
+
+        // Tombol Jalankan Alur Node (Vibrant Emerald Gradient)
+        bool is_busy = g_is_processing;
+        if (is_busy) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.35f, 0.25f, 0.8f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.35f, 0.25f, 0.8f));
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.08f, 0.68f, 0.48f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.12f, 0.82f, 0.58f, 1.0f));
+        }
+
+        if (ImGui::Button(is_busy ? "â³ Sedang Merender..." : "â–¶ï¸ Jalankan Alur Node", ImVec2(180, 26)) && !is_busy) {
+            // Salin konfigurasi node ke runtime inferensi
+            strcpy(g_input_prompt, s_node_prompt);
+            strcpy(g_negative_prompt, s_node_neg_prompt);
+            g_image_steps = s_node_steps;
+            g_cfg_scale = s_node_cfg;
+            g_custom_seed = s_node_seed;
+            g_random_seed = s_node_random_seed;
+            g_resolution_idx = s_node_res_idx;
+            g_sampling_method_idx = s_node_sampler_idx;
+
+            g_use_controlnet = s_node_cnet_enabled;
+            if (s_node_cnet_enabled && strlen(s_node_cnet_img_path) > 0) {
+                strncpy(g_init_image_path, s_node_cnet_img_path, sizeof(g_init_image_path) - 1);
+                g_has_init_image = true;
+            } else {
+                g_has_init_image = false;
+            }
+
+            ChatMsg userMsg;
+            userMsg.role = "Pengguna (Studio Node)";
+            userMsg.tag = "Alur Visual";
+            userMsg.timestamp = GetCurrentTimestamp();
+            userMsg.text = s_node_prompt;
+            userMsg.image_path = g_has_init_image ? g_init_image_path : "";
+
+            if (g_active_session_idx >= 0 && g_active_session_idx < (int)g_sessions.size()) {
+                g_sessions[g_active_session_idx].messages.push_back(userMsg);
+                SaveSessionToFile(g_sessions[g_active_session_idx]);
+            }
+
+            int out_w = 512, out_h = 512;
+            if (g_resolution_idx == 1) { out_w = 512; out_h = 768; }
+            else if (g_resolution_idx == 2) { out_w = 768; out_h = 512; }
+            else if (g_resolution_idx == 3) { out_w = 1024; out_h = 1024; }
+
+            g_is_processing = true;
+            g_pending_mode = 2; // Buat Foto / Difusi
+            g_worker_finished = false;
+            g_worker_result = "";
+            g_worker_img_path = "";
+            g_process_start_time = std::chrono::steady_clock::now();
+            g_process_progress.store(0.05f);
+
+            if (g_worker_thread.joinable()) {
+                g_worker_thread.join();
+            }
+            g_worker_thread = std::thread(
+                RunInferenceWorker,
+                std::string(s_node_prompt),
+                2,
+                g_selected_llm,
+                g_selected_photo,
+                g_num_threads,
+                s_node_steps,
+                s_node_cfg,
+                g_has_init_image ? std::string(g_init_image_path) : std::string(""),
+                0.65f,
+                g_use_controlnet,
+                g_selected_cnet_strength
+            );
+        }
+        ImGui::PopStyleColor(2);
+
+        ImGui::SameLine();
+        if (ImGui::Button("ðŸ”„ Reset Posisi", ImVec2(95, 26))) {
+            s_node_pos[0] = ImVec2(20.0f,  20.0f);
+            s_node_pos[1] = ImVec2(20.0f,  215.0f);
+            s_node_pos[2] = ImVec2(320.0f, 20.0f);
+            s_node_pos[3] = ImVec2(20.0f,  410.0f);
+            s_node_pos[4] = ImVec2(320.0f, 280.0f);
+            s_node_pos[5] = ImVec2(700.0f, 20.0f);
+            s_node_pos[6] = ImVec2(700.0f, 205.0f);
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Kembalikan tata letak kartu alur pipa node ke posisi standar baku.");
+
+        ImGui::SameLine();
+        if (ImGui::Button("ðŸ“‚ Model", ImVec2(72, 26))) {
+            ShellExecuteA(NULL, "open", "models", NULL, NULL, SW_SHOWNORMAL);
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Buka folder models di Windows Explorer (LoRA, VAE, Checkpoint, ControlNet).");
+
+        ImGui::SameLine();
+        ImGui::TextDisabled("| 0%% Python â€¢ 100%% C++ Direct3D 11 Native");
+
+        ImGui::EndChild(); // NodeTopBar
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor(2);
+    }
+
+    ImGui::Dummy(ImVec2(0, 4));
+
+    // 2. CANVAS GRID & NODE AREA
+    float canvas_h = panel_h - 48.0f;
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.040f, 0.055f, 0.090f, 0.95f));
+    ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.180f, 0.240f, 0.360f, 0.50f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f);
+    ImGui::BeginChild("NodeMainCanvas", ImVec2(panel_w - 4.0f, canvas_h), true, ImGuiWindowFlags_HorizontalScrollbar);
+
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    ImVec2 c_origin = ImGui::GetCursorScreenPos();
+    ImVec2 c_size = ImGui::GetContentRegionAvail();
+    if (c_size.x < 1180.0f) c_size.x = 1180.0f;
+    if (c_size.y < 620.0f) c_size.y = 620.0f;
+
+    // Gambar Grid Dot / Lines
+    const float GRID_STEP = 32.0f;
+    for (float gx = 0.0f; gx < c_size.x; gx += GRID_STEP) {
+        draw_list->AddLine(
+            ImVec2(c_origin.x + gx, c_origin.y),
+            ImVec2(c_origin.x + gx, c_origin.y + c_size.y),
+            ImColor(255, 255, 255, 12), 1.0f
+        );
+    }
+    for (float gy = 0.0f; gy < c_size.y; gy += GRID_STEP) {
+        draw_list->AddLine(
+            ImVec2(c_origin.x, c_origin.y + gy),
+            ImVec2(c_origin.x + c_size.x, c_origin.y + gy),
+            ImColor(255, 255, 255, 12), 1.0f
+        );
+    }
+
+    // Hitung Titik Pin untuk Kabel Bezier
+    ImVec2 pin_0_out  = ImVec2(c_origin.x + s_node_pos[0].x + 280.0f, c_origin.y + s_node_pos[0].y + 42.0f);
+    ImVec2 pin_1_in   = ImVec2(c_origin.x + s_node_pos[1].x,          c_origin.y + s_node_pos[1].y + 42.0f);
+    ImVec2 pin_1_out  = ImVec2(c_origin.x + s_node_pos[1].x + 280.0f, c_origin.y + s_node_pos[1].y + 42.0f);
+    ImVec2 pin_2_out  = ImVec2(c_origin.x + s_node_pos[2].x + 360.0f, c_origin.y + s_node_pos[2].y + 48.0f);
+    ImVec2 pin_3_out  = ImVec2(c_origin.x + s_node_pos[3].x + 280.0f, c_origin.y + s_node_pos[3].y + 42.0f);
+    ImVec2 pin_4_m    = ImVec2(c_origin.x + s_node_pos[4].x,          c_origin.y + s_node_pos[4].y + 46.0f);
+    ImVec2 pin_4_pos  = ImVec2(c_origin.x + s_node_pos[4].x,          c_origin.y + s_node_pos[4].y + 76.0f);
+    ImVec2 pin_4_ctrl = ImVec2(c_origin.x + s_node_pos[4].x,          c_origin.y + s_node_pos[4].y + 106.0f);
+    ImVec2 pin_4_lat  = ImVec2(c_origin.x + s_node_pos[4].x + 360.0f, c_origin.y + s_node_pos[4].y + 50.0f);
+    ImVec2 pin_5_lat  = ImVec2(c_origin.x + s_node_pos[5].x,          c_origin.y + s_node_pos[5].y + 42.0f);
+    ImVec2 pin_5_img  = ImVec2(c_origin.x + s_node_pos[5].x + 270.0f, c_origin.y + s_node_pos[5].y + 42.0f);
+    ImVec2 pin_6_img  = ImVec2(c_origin.x + s_node_pos[6].x,          c_origin.y + s_node_pos[6].y + 42.0f);
+
+    // Gambar Kabel Bezier Menyala (Glow Cables)
+    DrawGlowingBezier(draw_list, pin_0_out, pin_1_in,   ImColor(168, 85, 247)); // Model -> LoRA (Purple)
+    DrawGlowingBezier(draw_list, pin_1_out, pin_4_m,    ImColor(245, 158, 11)); // LoRA -> K-Sampler (Amber)
+    DrawGlowingBezier(draw_list, pin_2_out, pin_4_pos,  ImColor(56, 189, 248)); // Prompt -> K-Sampler (Sky Blue)
+    if (s_node_cnet_enabled) {
+        DrawGlowingBezier(draw_list, pin_3_out, pin_4_ctrl, ImColor(244, 63, 94)); // ControlNet -> K-Sampler (Rose)
+    }
+    DrawGlowingBezier(draw_list, pin_4_lat, pin_5_lat,  ImColor(16, 185, 129)); // K-Sampler -> VAE (Emerald)
+    DrawGlowingBezier(draw_list, pin_5_img, pin_6_img,  ImColor(0, 210, 255));  // VAE -> Output Preview (Cyan)
+
+    // Helper Fungsi Render Pin Lingkaran
+    auto DrawPinCircle = [&](ImVec2 pos, ImU32 col, const char* name, bool is_left) {
+        draw_list->AddCircleFilled(pos, 5.5f, col);
+        draw_list->AddCircle(pos, 5.5f, IM_COL32_WHITE, 0, 1.5f);
+        if (name && strlen(name) > 0) {
+            ImVec2 nsz = ImGui::CalcTextSize(name);
+            ImVec2 tpos = is_left ? ImVec2(pos.x - nsz.x - 8.0f, pos.y - nsz.y * 0.5f) : ImVec2(pos.x + 8.0f, pos.y - nsz.y * 0.5f);
+            draw_list->AddText(tpos, ImColor(200, 220, 245, 200), name);
+        }
+    };
+
+    DrawPinCircle(pin_0_out,  ImColor(168, 85, 247), "MODEL", false);
+    DrawPinCircle(pin_1_in,   ImColor(168, 85, 247), "", true);
+    DrawPinCircle(pin_1_out,  ImColor(245, 158, 11), "MODEL", false);
+    DrawPinCircle(pin_2_out,  ImColor(56, 189, 248), "COND", false);
+    if (s_node_cnet_enabled) {
+        DrawPinCircle(pin_3_out,  ImColor(244, 63, 94), "CONTROL", false);
+        DrawPinCircle(pin_4_ctrl, ImColor(244, 63, 94), "", true);
+    }
+    DrawPinCircle(pin_4_m,    ImColor(245, 158, 11), "", true);
+    DrawPinCircle(pin_4_pos,  ImColor(56, 189, 248), "", true);
+    DrawPinCircle(pin_4_lat,  ImColor(16, 185, 129), "LATENT", false);
+    DrawPinCircle(pin_5_lat,  ImColor(16, 185, 129), "", true);
+    DrawPinCircle(pin_5_img,  ImColor(0, 210, 255),  "IMAGE", false);
+    DrawPinCircle(pin_6_img,  ImColor(0, 210, 255),  "", true);
+
+    // =========================================================================
+    // NODE 0: MODEL CHECKPOINT LOADER
+    // =========================================================================
+    ImGui::SetCursorPos(s_node_pos[0]);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.090f, 0.125f, 0.200f, 0.94f));
+    ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.550f, 0.280f, 0.880f, 0.80f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
+    ImGui::BeginChild("Node_0", ImVec2(280, 175), true, ImGuiWindowFlags_NoScrollbar);
+    {
+        ImGui::TextColored(ImVec4(0.70f, 0.40f, 0.98f, 1.0f), "ðŸ§  Model Checkpoint Loader");
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
+            s_node_pos[0].x += ImGui::GetIO().MouseDelta.x;
+            s_node_pos[0].y += ImGui::GetIO().MouseDelta.y;
+        }
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::TextDisabled("Pilih Checkpoint SD1.5 / DiT:");
+        ImGui::SetNextItemWidth(-1);
+        if (!g_photo_items.empty()) {
+            ImGui::Combo("##NodePhotoCombo", &g_selected_photo, g_photo_items.data(), (int)g_photo_items.size());
+        }
+
+        ImGui::Spacing();
+        if (g_selected_photo >= 0 && g_selected_photo < (int)g_detected_photos.size()) {
+            ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 0.9f), "Tipe: %s", g_detected_photos[g_selected_photo].is_custom ? "Kustom" : "Bawaan");
+            ImGui::TextDisabled("Ukuran: %d MB | FP16 C++ Native", g_detected_photos[g_selected_photo].size_mb);
+        }
+        ImGui::TextColored(ImVec4(0.66f, 0.33f, 0.97f, 1.0f), "Output Pin: MODEL ->");
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
+
+    // =========================================================================
+    // NODE 1: LORA LOADER & BOBOT
+    // =========================================================================
+    ImGui::SetCursorPos(s_node_pos[1]);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.110f, 0.120f, 0.180f, 0.94f));
+    ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.950f, 0.580f, 0.150f, 0.80f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
+    ImGui::BeginChild("Node_1", ImVec2(280, 175), true, ImGuiWindowFlags_NoScrollbar);
+    {
+        ImGui::TextColored(ImVec4(0.95f, 0.65f, 0.18f, 1.0f), "ðŸ§© LoRA Loader & Bobot");
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
+            s_node_pos[1].x += ImGui::GetIO().MouseDelta.x;
+            s_node_pos[1].y += ImGui::GetIO().MouseDelta.y;
+        }
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::TextDisabled("Adaptor LoRA (.safetensors):");
+        ImGui::SetNextItemWidth(-1);
+        if (!g_lora_items.empty()) {
+            ImGui::Combo("##NodeLoraCombo", &g_selected_lora_idx, g_lora_items.data(), (int)g_lora_items.size());
+        }
+
+        ImGui::Spacing();
+        ImGui::Text("Bobot Pengaruh (Strength):");
+        ImGui::SetNextItemWidth(-1);
+        ImGui::SliderFloat("##NodeLoraStr", &g_selected_lora_strength, 0.10f, 1.50f, "%.2f");
+
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(0.95f, 0.58f, 0.15f, 1.0f), "Output Pin: MODEL (Modified) ->");
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
+
+    // =========================================================================
+    // NODE 2: PROMPT ENGINE POSITIF & NEGATIF
+    // =========================================================================
+    ImGui::SetCursorPos(s_node_pos[2]);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.080f, 0.130f, 0.220f, 0.94f));
+    ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.220f, 0.650f, 0.950f, 0.80f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
+    ImGui::BeginChild("Node_2", ImVec2(360, 240), true, ImGuiWindowFlags_NoScrollbar);
+    {
+        ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 1.0f), "ðŸ“ Prompt Conditioning Engine");
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
+            s_node_pos[2].x += ImGui::GetIO().MouseDelta.x;
+            s_node_pos[2].y += ImGui::GetIO().MouseDelta.y;
+        }
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 0.9f), "Prompt Utama (Positif):");
+        ImGui::InputTextMultiline("##NodePromptPos", s_node_prompt, sizeof(s_node_prompt), ImVec2(-1, 56));
+
+        ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.45f, 0.9f), "Negative Prompt (Hal yang Dihindari):");
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputText("##NodePromptNeg", s_node_neg_prompt, sizeof(s_node_neg_prompt));
+
+        ImGui::Spacing();
+        if (ImGui::Button("+ 8K DSLR", ImVec2(0, 22))) {
+            strcat(s_node_prompt, ", Canon EOS R5 85mm f/1.4, 8k uhd, photorealistic");
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("+ Pori Kulit", ImVec2(0, 22))) {
+            strcat(s_node_prompt, ", ultra detailed skin pores, natural texture");
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("+ Golden Hour", ImVec2(0, 22))) {
+            strcat(s_node_prompt, ", warm golden hour sunset lighting");
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Bersihkan", ImVec2(0, 22))) {
+            s_node_prompt[0] = '\0';
+        }
+
+        ImGui::TextColored(ImVec4(0.22f, 0.74f, 0.97f, 1.0f), "Output Pin: CONDITIONING ->");
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
+
+    // =========================================================================
+    // NODE 3: CONTROLNET CANNY & POSE ACUAN
+    // =========================================================================
+    ImGui::SetCursorPos(s_node_pos[3]);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.140f, 0.080f, 0.120f, 0.94f));
+    ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.920f, 0.250f, 0.450f, 0.80f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
+    ImGui::BeginChild("Node_3", ImVec2(280, 185), true, ImGuiWindowFlags_NoScrollbar);
+    {
+        ImGui::TextColored(ImVec4(0.95f, 0.40f, 0.60f, 1.0f), "ðŸŽ¯ ControlNet Canny (Pose Lock)");
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
+            s_node_pos[3].x += ImGui::GetIO().MouseDelta.x;
+            s_node_pos[3].y += ImGui::GetIO().MouseDelta.y;
+        }
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::Checkbox("Aktifkan ControlNet", &s_node_cnet_enabled);
+        ImGui::SameLine();
+        if (ImGui::Button("ðŸ“ Pilih Foto", ImVec2(0, 22))) {
+            std::string chosen = OpenImageFileDialog(g_hMainWnd);
+            if (!chosen.empty()) {
+                strncpy(s_node_cnet_img_path, chosen.c_str(), sizeof(s_node_cnet_img_path) - 1);
+                s_node_cnet_enabled = true;
+            }
+        }
+
+        ImGui::SetNextItemWidth(-1);
+        if (!g_cnet_items.empty()) {
+            ImGui::Combo("##NodeCnetCombo", &g_selected_cnet_idx, g_cnet_items.data(), (int)g_cnet_items.size());
+        }
+
+        ImGui::Spacing();
+        ImGui::Text("Kekuatan Panduan Pose:");
+        ImGui::SetNextItemWidth(-1);
+        ImGui::SliderFloat("##NodeCnetStr", &g_selected_cnet_strength, 0.10f, 1.00f, "%.2f");
+
+        if (strlen(s_node_cnet_img_path) > 0) {
+            std::string fname = s_node_cnet_img_path;
+            size_t slash = fname.find_last_of("\\/");
+            if (slash != std::string::npos) fname = fname.substr(slash + 1);
+            ImGui::TextColored(ImVec4(0.35f, 0.95f, 0.65f, 0.9f), "Acuan: %s", fname.c_str());
+        } else {
+            ImGui::TextDisabled("Belum ada foto acuan pose");
+        }
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
+
+    // =========================================================================
+    // NODE 4: K-SAMPLER ENGINE
+    // =========================================================================
+    ImGui::SetCursorPos(s_node_pos[4]);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.080f, 0.140f, 0.120f, 0.94f));
+    ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.120f, 0.720f, 0.520f, 0.80f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
+    ImGui::BeginChild("Node_4", ImVec2(360, 330), true, ImGuiWindowFlags_NoScrollbar);
+    {
+        ImGui::TextColored(ImVec4(0.35f, 0.95f, 0.75f, 1.0f), "ðŸŽ›ï¸ K-Sampler Engine (C++ Native)");
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
+            s_node_pos[4].x += ImGui::GetIO().MouseDelta.x;
+            s_node_pos[4].y += ImGui::GetIO().MouseDelta.y;
+        }
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::Text("Metode Sampling:");
+        static const char* s_sampler_names[] = { "Euler Ancestral (euler_a)", "DPM++ 2M Karras", "LCM Fast (4-Step)", "Euler Standar" };
+        ImGui::SetNextItemWidth(-1);
+        ImGui::Combo("##NodeSamplerCombo", &s_node_sampler_idx, s_sampler_names, IM_ARRAYSIZE(s_sampler_names));
+
+        ImGui::Spacing();
+        ImGui::Text("Langkah Denoising (Steps): %d", s_node_steps);
+        ImGui::SetNextItemWidth(-1);
+        ImGui::SliderInt("##NodeSteps", &s_node_steps, 4, 50);
+
+        ImGui::Spacing();
+        ImGui::Text("Kepatuhan Prompt (CFG Scale): %.1f", s_node_cfg);
+        ImGui::SetNextItemWidth(-1);
+        ImGui::SliderFloat("##NodeCFG", &s_node_cfg, 1.0f, 15.0f, "%.1f");
+
+        ImGui::Spacing();
+        ImGui::Text("Rasio Resolusi:");
+        static const char* s_res_labels[] = { "512 x 512 (Persegi 1:1)", "512 x 768 (Potret Vertikal)", "768 x 512 (Landscape Horisontal)", "1024 x 1024 (HD Kotak)" };
+        ImGui::SetNextItemWidth(-1);
+        ImGui::Combo("##NodeResCombo", &s_node_res_idx, s_res_labels, IM_ARRAYSIZE(s_res_labels));
+
+        ImGui::Spacing();
+        ImGui::Checkbox("Acak Seed", &s_node_random_seed);
+        if (!s_node_random_seed) {
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(120.0f);
+            ImGui::InputInt("##NodeSeed", &s_node_seed);
+        }
+
+        ImGui::TextColored(ImVec4(0.12f, 0.72f, 0.52f, 1.0f), "Output Pin: LATENT ->");
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
+
+    // =========================================================================
+    // NODE 5: VAE DECODER
+    // =========================================================================
+    ImGui::SetCursorPos(s_node_pos[5]);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.080f, 0.120f, 0.180f, 0.94f));
+    ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.000f, 0.800f, 0.980f, 0.80f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
+    ImGui::BeginChild("Node_5", ImVec2(270, 165), true, ImGuiWindowFlags_NoScrollbar);
+    {
+        ImGui::TextColored(ImVec4(0.20f, 0.85f, 1.0f, 1.0f), "âš¡ VAE Decoder Engine");
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
+            s_node_pos[5].x += ImGui::GetIO().MouseDelta.x;
+            s_node_pos[5].y += ImGui::GetIO().MouseDelta.y;
+        }
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::TextDisabled("Pilih VAE Decoder:");
+        ImGui::SetNextItemWidth(-1);
+        if (!g_vae_items.empty()) {
+            ImGui::Combo("##NodeVaeCombo", &g_selected_vae_idx, g_vae_items.data(), (int)g_vae_items.size());
+        }
+
+        ImGui::Spacing();
+        if (g_selected_vae_idx == 0) {
+            ImGui::TextColored(ImVec4(0.35f, 0.95f, 0.65f, 0.9f), "âš¡ TAESD: Decode ~2.7s di CPU");
+            ImGui::TextDisabled("Akselerasi 22x lebih cepat.");
+        } else {
+            ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 0.9f), "ðŸŽ¨ MSE HQ: Warna akurat DSLR");
+            ImGui::TextDisabled("Decoding ~20-30s di CPU.");
+        }
+
+        ImGui::TextColored(ImVec4(0.00f, 0.80f, 0.98f, 1.0f), "Output Pin: IMAGE ->");
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
+
+    // =========================================================================
+    // NODE 6: IMAGE OUTPUT PREVIEW & EXPORT
+    // =========================================================================
+    ImGui::SetCursorPos(s_node_pos[6]);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.120f, 0.090f, 0.170f, 0.94f));
+    ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.850f, 0.280f, 0.950f, 0.80f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
+    ImGui::BeginChild("Node_6", ImVec2(380, 480), true, ImGuiWindowFlags_NoScrollbar);
+    {
+        ImGui::TextColored(ImVec4(0.90f, 0.45f, 1.0f, 1.0f), "ðŸ–¼ï¸ Image Output Preview");
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
+            s_node_pos[6].x += ImGui::GetIO().MouseDelta.x;
+            s_node_pos[6].y += ImGui::GetIO().MouseDelta.y;
+        }
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (g_is_processing) {
+            double el = std::chrono::duration<double>(std::chrono::steady_clock::now() - g_process_start_time).count();
+            ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 1.0f), "âš¡ Merender Alur Node... (%.1fs)", el);
+            ImGui::ProgressBar(g_process_progress.load(), ImVec2(-1, 14), "");
+            ImGui::Spacing();
+            ImGui::TextDisabled("Komputasi difusi AVX2 / CUDA sedang berjalan...");
+        } else {
+            // Tampilkan gambar hasil dari sesi aktif (pesan terakhir bergambar)
+            ID3D11ShaderResourceView* last_tex = NULL;
+            std::string last_img_path = "";
+            if (g_active_session_idx >= 0 && g_active_session_idx < (int)g_sessions.size()) {
+                const auto& msgs = g_sessions[g_active_session_idx].messages;
+                for (int m = (int)msgs.size() - 1; m >= 0; m--) {
+                    if (msgs[m].texture_view != NULL) {
+                        last_tex = msgs[m].texture_view;
+                        last_img_path = msgs[m].image_path;
+                        break;
+                    }
+                }
+            }
+
+            if (last_tex != NULL) {
+                float img_w = 356.0f;
+                float img_h = 356.0f;
+                ImGui::Image((ImTextureID)last_tex, ImVec2(img_w, img_h));
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Klik tombol [ðŸ” Perbesar] di bawah untuk tampilan layar penuh.");
+                }
+
+                ImGui::Spacing();
+                if (ImGui::Button("ðŸ“‚ Buka File", ImVec2(95, 24))) {
+                    ShellExecuteA(NULL, "open", last_img_path.c_str(), NULL, NULL, SW_SHOWNORMAL);
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("ðŸ” Perbesar", ImVec2(95, 24))) {
+                    g_fullscreen_image_view = last_tex;
+                    g_fullscreen_image_path = last_img_path;
+                    g_show_fullscreen_image_modal = true;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("ðŸ“ Folder", ImVec2(80, 24))) {
+                    ShellExecuteA(NULL, "open", "outputs", NULL, NULL, SW_SHOWNORMAL);
+                }
+            } else {
+                // Placeholder siap render
+                ImVec2 p_min = ImGui::GetCursorScreenPos();
+                ImVec2 p_max(p_min.x + 356.0f, p_min.y + 356.0f);
+                draw_list->AddRectFilled(p_min, p_max, ImColor(16, 22, 35, 255), 8.0f);
+                draw_list->AddRect(p_min, p_max, ImColor(60, 80, 110, 150), 8.0f);
+                ImVec2 center(p_min.x + 178.0f, p_min.y + 178.0f);
+                const char* empty_txt = "Siap Merender Alur Node";
+                ImVec2 tsz = ImGui::CalcTextSize(empty_txt);
+                draw_list->AddText(ImVec2(center.x - tsz.x * 0.5f, center.y - 10.0f), ImColor(140, 160, 190, 200), empty_txt);
+                const char* hint_txt = "Klik [â–¶ï¸ Jalankan Alur Node] di atas";
+                ImVec2 hsz = ImGui::CalcTextSize(hint_txt);
+                draw_list->AddText(ImVec2(center.x - hsz.x * 0.5f, center.y + 12.0f), ImColor(0, 210, 255, 220), hint_txt);
+                ImGui::Dummy(ImVec2(356.0f, 356.0f));
+            }
+        }
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
+
+    ImGui::EndChild(); // NodeMainCanvas
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
+
+    ImGui::EndChild(); // NodeCanvasRoot
+    ImGui::PopStyleVar();
+}
+
 // Render Dashboard Card Hub (Modern Direct3D 11 Vector Cards)
 static void RenderDashboardHub(float panel_w, float panel_h) {
     ImGui::BeginChild("DashboardHub", ImVec2(panel_w, panel_h), false, 0);
@@ -2111,6 +2786,25 @@ static void RenderDashboardHub(float panel_w, float panel_h) {
         card_w
     )) {
         g_selected_mode = 5;
+    }
+
+    ImGui::Spacing();
+
+    // Kartu 5: Studio Alur Node (ComfyUI Visual C++ Native)
+    if (DrawDashboardCard(
+        "Card_Node",
+        "Studio Alur Node (Visual Pipeline)",
+        "ComfyUI-Style Pure C++ - Checkpoint, LoRA, ControlNet & VAE",
+        "Rangkai alur pipa AI secara visual dengan kabel Bezier, custom VAE, dan LoRA tanpa Python.",
+        "Buka Studio Node ->",
+        g_hub_custom_tex_node,
+        CARD_THEME_NODE,
+        "C++ D3D11",
+        "0% Python",
+        6,
+        card_w
+    )) {
+        g_selected_mode = 6;
     }
 
     ImGui::Spacing();
@@ -2539,6 +3233,12 @@ int WINAPI WinMain
     // Muat riwayat percakapan permanen dari disk
     LoadSessionsFromDisk(g_pd3dDevice);
 
+    // Muat cover kartu AI secara otomatis dari assets/covers/
+    SetCardCover(1, "assets/covers/cover_chat_llm.jpg");
+    SetCardCover(2, "assets/covers/cover_photo_studio.jpg");
+    SetCardCover(3, "assets/covers/cover_nsfw_studio.jpg");
+    SetCardCover(6, "assets/covers/cover_studio_node.jpg");
+
     // 5. Main Loop (60 FPS VSync)
     bool bDone = false;
     while (!bDone) {
@@ -2836,10 +3536,10 @@ int WINAPI WinMain
         // A. TOP NAVBAR (Tinggi 42px)
         ImGui::BeginChild("TopNavbar", ImVec2(right_panel_width, 42), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         
-        static const char* nav_mode_labels[] = { "Home", "Chat AI", "Studio Foto", "Dewasa (18+)", "Video AI", "Suara AI" };
+        static const char* nav_mode_labels[] = { "Home", "Chat AI", "Studio Foto", "Dewasa (18+)", "Video AI", "Suara AI", "Studio Node" };
 
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 4));
-        for (int m = 0; m < 6; m++) {
+        for (int m = 0; m < 7; m++) {
             if (m > 0) ImGui::SameLine();
             bool is_active = (g_selected_mode == m);
             if (m == 0) {
@@ -2868,6 +3568,15 @@ int WINAPI WinMain
                 } else {
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.06f, 0.25f, 0.22f, 0.85f));
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.10f, 0.36f, 0.30f, 1.0f));
+                }
+            } else if (m == 6) {
+                // Tombol Studio Node dengan warna Violet Neon / ComfyUI Glow
+                if (is_active) {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.22f, 0.88f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.68f, 0.32f, 0.98f, 1.0f));
+                } else {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.12f, 0.28f, 0.85f));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.28f, 0.16f, 0.38f, 1.0f));
                 }
             } else {
                 if (is_active) {
@@ -2903,6 +3612,9 @@ int WINAPI WinMain
             if (ImGui::IsItemHovered() && !g_photo_items.empty() && g_selected_photo < (int)g_photo_items.size()) {
                 ImGui::SetTooltip("Model Difusi Aktif: %s", g_photo_items[g_selected_photo]);
             }
+        } else if (g_selected_mode == 6) {
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextColored(ImVec4(0.70f, 0.35f, 0.98f, 1.0f), "âš¡ Studio Node (Visual Pipeline)");
         } else if (g_selected_mode == 0) {
             ImGui::AlignTextToFramePadding();
             ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 0.95f), "Dashboard Hub");
@@ -3143,6 +3855,10 @@ int WINAPI WinMain
             // TAMPILKAN DASHBOARD CARD HUB (MODERN & RINGAN)
             float hub_h = main_content_h - 44.0f;
             RenderDashboardHub(right_panel_width, hub_h);
+        } else if (g_selected_mode == 6) {
+            // TAMPILKAN STUDIO NODE (CANVAS VISUAL WORKFLOW SEPERTI COMFYUI NATIVE C++)
+            float node_h = main_content_h - 44.0f;
+            RenderNodeStudioCanvas(right_panel_width, node_h);
         } else {
             // B. CHAT CANVAS (Scrollable Area)
             float input_card_h = 0.0f;
