@@ -66,7 +66,7 @@ static bool g_search_internet = false;
 static bool g_voice_enabled = false;
 static bool g_auto_speak = false; // Default: OFF (AI diam dan TIDAK ngomong sendiri kecuali disuruh)
 static bool g_agent_mode = true;
-static CoreTelemetry g_telemetry = {0};
+static CoreTelemetry g_telemetry = {};
 
 // NSFW, Realism & Acceleration State
 static bool g_nsfw_mode_is_photo = true; // true = Foto NSFW Realistis, false = Chat Bebas Uncensored
@@ -1215,7 +1215,6 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
         std::string full_output = "";
         char read_buf[512];
         DWORD bytes_read = 0;
-        int total_steps = actual_steps;
         auto start_time = std::chrono::high_resolution_clock::now();
 
         while (ReadFile(hReadPipe, read_buf, sizeof(read_buf) - 1, &bytes_read, NULL) && bytes_read > 0) {
@@ -1236,7 +1235,6 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
                         int s = atoi(step_ptr);
                         int tot = atoi(match + 1);
                         if (s > 0 && tot > 0 && tot == actual_steps) {
-                            total_steps = tot;
                             float pct = (float)s / (float)tot;
                             g_process_progress.store(0.15f + pct * 0.75f);
                             
@@ -2281,7 +2279,7 @@ int WINAPI WinMain
 
     // 1. Inisialisasi C++ Native Core & Auto-Deteksi Hardware (CPU / RAM / GPU RTX)
     Core_Init(0);
-    ScanModelsDirectory(); // ✨ Auto-deteksi semua model .gguf & .safetensors di folder models\
+    ScanModelsDirectory(); // Auto-deteksi semua model .gguf & .safetensors di folder models
     g_hw_profile = DetectHardwareAndCompatibility();
     g_hw_initialized = true;
     ApplyHardwareCompatibilitySettings();
@@ -3751,7 +3749,7 @@ int WINAPI WinMain
                 }
 
                 if (ImGui::CollapsingHeader("Pengaturan Khusus NSFW & Realistis", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    ImGui::TextColored(ImVec4(0.98f, 0.35f, 0.55f, 1.0f), "Mode Uncensored 100% C++ Native Engine");
+                    ImGui::TextColored(ImVec4(0.98f, 0.35f, 0.55f, 1.0f), "%s", "Mode Uncensored 100% C++ Native Engine");
                     ImGui::Checkbox("Otomatis Sisipkan Keyword Realistis (Booster)", &g_nsfw_quality_booster);
                     HelpBadge(
                         "Keyword Realistis (Booster)",
