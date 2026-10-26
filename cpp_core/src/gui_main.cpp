@@ -145,6 +145,42 @@ static std::atomic<bool> g_worker_finished(false);
 static std::string g_worker_result = "";
 static std::string g_worker_img_path = "";
 
+// Fullscreen Image Modal Globals
+static bool g_show_fullscreen_image_modal = false;
+static ID3D11ShaderResourceView* g_fullscreen_image_view = NULL;
+static std::string g_fullscreen_image_path = "";
+static int g_fullscreen_img_w = 512;
+static int g_fullscreen_img_h = 512;
+
+// Window Fullscreen (Borderless F11)
+static bool g_is_borderless_fullscreen = false;
+static WINDOWPLACEMENT g_wp_prev = { sizeof(g_wp_prev) };
+
+void ToggleBorderlessFullscreen(HWND hwnd) {
+    if (!hwnd) return;
+    DWORD dwStyle = GetWindowLong(hwnd, GWL_STYLE);
+    if (!g_is_borderless_fullscreen) {
+        MONITORINFO mi = { sizeof(mi) };
+        if (GetWindowPlacement(hwnd, &g_wp_prev) &&
+            GetMonitorInfo(MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY), &mi)) {
+            SetWindowLong(hwnd, GWL_STYLE, dwStyle & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(hwnd, HWND_TOP,
+                         mi.rcMonitor.left, mi.rcMonitor.top,
+                         mi.rcMonitor.right - mi.rcMonitor.left,
+                         mi.rcMonitor.bottom - mi.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+            g_is_borderless_fullscreen = true;
+        }
+    } else {
+        SetWindowLong(hwnd, GWL_STYLE, dwStyle | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(hwnd, &g_wp_prev);
+        SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        g_is_borderless_fullscreen = false;
+    }
+}
+
 void CopyTextToClipboard(const std::string& text) {
     if (OpenClipboard(NULL)) {
         EmptyClipboard();
@@ -2114,7 +2150,21 @@ void RenderWhatsAppBubble(const ChatMsg& msg, float chat_w, int idx) {
     // 1. Render Gambar Langsung di Layar Chat Direct3D 11
     if (msg.texture_view != NULL) {
         ImGui::Spacing();
-        ImGui::Image((ImTextureID)msg.texture_view, ImVec2(preview_w, preview_w * aspect));
+        // Klik gambar langsung membuka Layar Penuh!
+        char img_btn_id[32];
+        snprintf(img_btn_id, sizeof(img_btn_id), "img_btn##%d", idx);
+        if (ImGui::ImageButton(img_btn_id, (ImTextureID)msg.texture_view, ImVec2(preview_w, preview_w * aspect))) {
+            g_fullscreen_image_view = msg.texture_view;
+            g_fullscreen_img_w = msg.img_w > 0 ? msg.img_w : 512;
+            g_fullscreen_img_h = msg.img_h > 0 ? msg.img_h : 512;
+            char full_p[MAX_PATH] = { 0 };
+            GetFullPathNameA(msg.image_path.c_str(), MAX_PATH, full_p, NULL);
+            g_fullscreen_image_path = full_p;
+            g_show_fullscreen_image_modal = true;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Klik untuk Buka Full Screen!");
+        }
         ImGui::Spacing();
     }
 
@@ -2124,24 +2174,35 @@ void RenderWhatsAppBubble(const ChatMsg& msg, float chat_w, int idx) {
         ImGui::Spacing();
 
         char btn_view[64], btn_folder[64], btn_copy[64];
-        snprintf(btn_view, sizeof(btn_view), "Layar Penuh##%d", idx);
-        snprintf(btn_folder, sizeof(btn_folder), "Folder Output##%d", idx);
-        snprintf(btn_copy, sizeof(btn_copy), "Salin Path##%d", idx);
+        snprintf(btn_view, sizeof(btn_view), "🔍 Layar Penuh##%d", idx);
+        snprintf(btn_folder, sizeof(btn_folder), "📁 Folder Output##%d", idx);
+        snprintf(btn_copy, sizeof(btn_copy), "📋 Salin Path##%d", idx);
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.50f, 0.35f, 1.0f));
-        if (ImGui::Button(btn_view, ImVec2(110, 30))) {
-            ShellExecuteA(NULL, "open", msg.image_path.c_str(), NULL, NULL, SW_SHOWNORMAL);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.65f, 0.45f, 1.0f));
+        if (ImGui::Button(btn_view, ImVec2(120, 30))) {
+            g_fullscreen_image_view = msg.texture_view;
+            g_fullscreen_img_w = msg.img_w > 0 ? msg.img_w : 512;
+            g_fullscreen_img_h = msg.img_h > 0 ? msg.img_h : 512;
+            char full_p[MAX_PATH] = { 0 };
+            GetFullPathNameA(msg.image_path.c_str(), MAX_PATH, full_p, NULL);
+            g_fullscreen_image_path = full_p;
+            g_show_fullscreen_image_modal = true;
         }
-        ImGui::PopStyleColor();
+        ImGui::PopStyleColor(2);
 
         ImGui::SameLine();
-        if (ImGui::Button(btn_folder, ImVec2(110, 30))) {
-            ShellExecuteA(NULL, "open", "outputs\\foto", NULL, NULL, SW_SHOWNORMAL);
+        if (ImGui::Button(btn_folder, ImVec2(120, 30))) {
+            char full_dir[MAX_PATH] = { 0 };
+            GetFullPathNameA("outputs\\foto", MAX_PATH, full_dir, NULL);
+            ShellExecuteA(NULL, "open", full_dir, NULL, NULL, SW_SHOWNORMAL);
         }
 
         ImGui::SameLine();
         if (ImGui::Button(btn_copy, ImVec2(90, 30))) {
-            CopyTextToClipboard(msg.image_path);
+            char full_p[MAX_PATH] = { 0 };
+            GetFullPathNameA(msg.image_path.c_str(), MAX_PATH, full_p, NULL);
+            CopyTextToClipboard(full_p);
         }
 
         ImGui::Spacing();
@@ -2195,6 +2256,74 @@ void RenderWhatsAppBubble(const ChatMsg& msg, float chat_w, int idx) {
     ImGui::Dummy(ImVec2(0, 6)); // Spacing antar bubble
 }
 
+
+// ================= PENAMPIL GAMBAR LAYAR PENUH (FULLSCREEN IMAGE MODAL) =================
+void RenderFullscreenImageModal(float app_width, float app_height) {
+    if (!g_show_fullscreen_image_modal || !g_fullscreen_image_view) return;
+
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImVec2(app_width, app_height));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.02f, 0.03f, 0.05f, 0.96f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16, 16));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+
+    if (ImGui::Begin("##FullscreenImageViewer", &g_show_fullscreen_image_modal,
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBringToFrontOnFocus)) {
+
+        // Top bar
+        ImGui::TextColored(ImVec4(0.38f, 0.85f, 0.98f, 1.0f), "🖼️ Penampil Gambar Layar Penuh Direct3D 11");
+        ImGui::SameLine();
+        ImGui::TextDisabled("| %d x %d px", g_fullscreen_img_w, g_fullscreen_img_h);
+
+        ImGui::SetCursorPos(ImVec2(app_width - 150.0f, 12.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.70f, 0.15f, 0.15f, 0.9f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.90f, 0.20f, 0.20f, 1.0f));
+        if (ImGui::Button("❌ Tutup (ESC)", ImVec2(130, 32))) {
+            g_show_fullscreen_image_modal = false;
+        }
+        ImGui::PopStyleColor(2);
+
+        // Calculate maximum aspect-preserved drawing area
+        float max_w = app_width - 32.0f;
+        float max_h = app_height - 110.0f;
+        float scale_w = max_w / (float)g_fullscreen_img_w;
+        float scale_h = max_h / (float)g_fullscreen_img_h;
+        float best_scale = (scale_w < scale_h) ? scale_w : scale_h;
+        if (best_scale > 2.5f) best_scale = 2.5f;
+
+        float draw_w = (float)g_fullscreen_img_w * best_scale;
+        float draw_h = (float)g_fullscreen_img_h * best_scale;
+
+        float center_x = (app_width - draw_w) * 0.5f;
+        float center_y = 52.0f + (max_h - draw_h) * 0.5f;
+
+        ImGui::SetCursorPos(ImVec2(center_x, center_y));
+        ImGui::Image((void*)g_fullscreen_image_view, ImVec2(draw_w, draw_h));
+
+        // Bottom action bar
+        ImGui::SetCursorPos(ImVec2(24.0f, app_height - 48.0f));
+        if (ImGui::Button("📁 Buka di File Explorer", ImVec2(190, 32))) {
+            char cmd[MAX_PATH + 50];
+            snprintf(cmd, sizeof(cmd), "explorer.exe /select,\"%s\"", g_fullscreen_image_path.c_str());
+            system(cmd);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("🖼️ Buka di Aplikasi Windows", ImVec2(210, 32))) {
+            ShellExecuteA(NULL, "open", g_fullscreen_image_path.c_str(), NULL, NULL, SW_SHOWNORMAL);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("📋 Salin Path Gambar", ImVec2(160, 32))) {
+            CopyTextToClipboard(g_fullscreen_image_path);
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            g_show_fullscreen_image_modal = false;
+        }
+    }
+    ImGui::End();
+    ImGui::PopStyleVar(2);
+    ImGui::PopStyleColor();
+}
 
 // ================= STATUS BAR TELEMETRI HARDWARE DIRECT3D 11 =================
 void RenderD3D11StatusBar(float app_width, float app_height) {
@@ -2666,6 +2795,11 @@ int WINAPI WinMain
                 g_import_status_text = "";
             }
         }
+        ImGui::SameLine();
+        if (ImGui::Button(g_is_borderless_fullscreen ? "🗗 Normal" : "⛶ Layar Penuh", ImVec2(100, 26))) {
+            ToggleBorderlessFullscreen(g_hMainWnd);
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Buka Layar Penuh (Borderless Fullscreen). Shortcut: Tekan F11");
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Pasang Model .GGUF / .safetensors baru dari laptop Anda");
         }
@@ -3786,6 +3920,14 @@ int WINAPI WinMain
 
         // ================= MODAL KONFIRMASI HAPUS MODEL =================
         RenderDeleteConfirmModal();
+
+        // Shortcut F11 untuk Layar Penuh
+        if (ImGui::IsKeyPressed(ImGuiKey_F11)) {
+            ToggleBorderlessFullscreen(g_hMainWnd);
+        }
+
+        // Penampil Gambar Layar Penuh Sinematik
+        RenderFullscreenImageModal(app_width, app_height);
 
         // Render Status Bar Telemetri D3D11 di bagian paling bawah
         RenderD3D11StatusBar(app_width, app_height);
