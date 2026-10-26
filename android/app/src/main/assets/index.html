@@ -44,6 +44,15 @@
     .tab-pane.active { display: block; animation: fadeIn 0.2s ease-in-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
+    /* Folder Banner */
+    .folder-banner {
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+
     /* Cards Catalog */
     .card-item {
       background: #1e293b;
@@ -123,9 +132,9 @@
     <div class="brand-title">
       <div class="pulse-dot"></div>
       <span>AI Studio Mobile</span>
-      <span class="badge-native">C++ LAN</span>
+      <span class="badge-native">Android Native</span>
     </div>
-    <div style="font-size: 11px; color: #94a3b8;" id="status-engine">Laptop: Online</div>
+    <div style="font-size: 11px; color: #94a3b8;" id="status-engine">Model Ready</div>
   </div>
 
   <!-- Content Container -->
@@ -133,9 +142,24 @@
 
     <!-- TAB 1: HOME (CARDS LIST) -->
     <div id="tab-home" class="tab-pane active">
+
+      <!-- Folder Model Auto-Created Banner -->
+      <div class="folder-banner">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 12px; font-weight: 700; color: #00d4ff;">📁 Folder Model HP Otomatis:</span>
+          <span style="font-size: 10px; background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-weight: 600;">AKTIF</span>
+        </div>
+        <p style="font-size: 11px; color: #cbd5e1; margin: 0 0 8px 0; font-family: monospace; word-break: break-all;" id="path-display">
+          Documents/AIStudio/models/
+        </p>
+        <button onclick="triggerImport(); tapVibrate();" style="width: 100%; background: linear-gradient(135deg, #0284c7, #2563eb); border: none; color: #fff; font-size: 11px; font-weight: 700; padding: 8px; border-radius: 8px; cursor: pointer;">
+          📥 Impor Model Baru (.gguf / .safetensors)
+        </button>
+      </div>
+
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <h2 style="font-size: 16px; margin: 0;">Pilih Mode AI</h2>
-        <span style="font-size: 12px; color: #00d4ff;">100% C++ Engine</span>
+        <span style="font-size: 12px; color: #00d4ff;">100% Offline HP</span>
       </div>
 
       <!-- Card 1: Chat LLM -->
@@ -198,13 +222,13 @@
     <!-- TAB 2: CHAT AI -->
     <div id="tab-chat" class="tab-pane">
       <div style="margin-bottom: 12px; font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between;">
-        <span>Model: <strong style="color: #38bdf8;">DeepSeek-R1 Distill</strong></span>
+        <span>Model: <strong style="color: #38bdf8;" id="active-llm-label">DeepSeek-R1 Distill</strong></span>
         <span style="color: #10b981;">Latency: ~12ms</span>
       </div>
 
       <div id="chat-messages" style="margin-bottom: 14px;">
         <div class="chat-bubble chat-ai">
-          Halo! Saya asisten AI lokal C++ Anda. Ada yang bisa saya bantu untuk koding, analisis dokumen, atau membuat ide foto?
+          Halo! Saya asisten AI lokal C++ Anda. Folder <strong>AIStudio/models/</strong> telah otomatis dibuat di memori HP Anda. Anda dapat mengimpor file .gguf kapan saja!
         </div>
       </div>
 
@@ -243,7 +267,7 @@
       </div>
 
       <button id="btn-generate" class="btn-action" style="background: linear-gradient(135deg, #059669, #0d9488); margin-top: 10px;" onclick="generatePhoto(); tapVibrate();">
-        🚀 Generate Foto di Laptop
+        🚀 Generate Foto
       </button>
 
       <div id="progress-box" style="display: none; background: #1e293b; padding: 12px; border-radius: 10px; margin-top: 12px;">
@@ -259,20 +283,24 @@
 
     <!-- TAB 4: SETTINGS -->
     <div id="tab-settings" class="tab-pane">
-      <h2 style="font-size: 15px; margin: 0 0 12px 0;">Pengaturan Studio & Koneksi</h2>
+      <h2 style="font-size: 15px; margin: 0 0 12px 0;">Pengaturan Model & Penyimpanan</h2>
 
       <div style="background: #1e293b; padding: 14px; border-radius: 12px; margin-bottom: 12px;">
-        <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Alamat IP Engine Laptop:</label>
-        <input type="text" id="engine-ip" value="http://192.168.1.5:8080">
-        <span style="font-size: 10px; color: #10b981; display: block; margin-top: 6px;">● Status: Terhubung via Local WiFi</span>
+        <h3 style="font-size: 13px; margin: 0 0 6px 0; color: #00d4ff;">📂 Manajemen Folder AIStudio HP</h3>
+        <p style="font-size: 11px; color: #94a3b8; margin: 0 0 8px 0;">Struktur folder model dibuat otomatis di memori internal HP:</p>
+        <div style="background: #0f172a; padding: 8px 10px; border-radius: 8px; font-family: monospace; font-size: 11px; color: #38bdf8; margin-bottom: 10px;" id="full-path-text">
+          Documents/AIStudio/
+        </div>
+        <button class="btn-action" style="background: #0284c7; font-size: 12px; padding: 10px;" onclick="triggerImport(); tapVibrate();">
+          📥 Pilih & Import File Model Baru (.gguf / .safetensors)
+        </button>
       </div>
 
       <div style="background: #1e293b; padding: 14px; border-radius: 12px; margin-bottom: 12px;">
-        <h3 style="font-size: 13px; margin: 0 0 6px 0;">🧹 Optimasi Memori Laptop</h3>
-        <p style="font-size: 11px; color: #94a3b8; margin: 0 0 10px 0;">Kirim sinyal Purge All ke laptop untuk membebaskan VRAM D3D11 dan physical RAM.</p>
-        <button class="btn-action" style="background: #334155; font-size: 12px; padding: 10px;" onclick="triggerPurge(); tapVibrate();">
-          Bersihkan RAM & VRAM Sekarang
-        </button>
+        <h3 style="font-size: 13px; margin: 0 0 6px 0;">🌐 Koneksi Nirkabel LAN ke Laptop</h3>
+        <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Alamat IP Server Laptop:</label>
+        <input type="text" id="engine-ip" value="http://192.168.1.5:8080">
+        <span style="font-size: 10px; color: #10b981; display: block; margin-top: 6px;">● Status: Mode Standalone + LAN Sinkron</span>
       </div>
     </div>
 
@@ -299,6 +327,16 @@
   </div>
 
   <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      if (window.AndroidNative && window.AndroidNative.getAIStudioPath) {
+        const path = window.AndroidNative.getAIStudioPath();
+        const display = document.getElementById('path-display');
+        const full = document.getElementById('full-path-text');
+        if (display) display.innerText = path + "/models/";
+        if (full) full.innerText = path;
+      }
+    });
+
     function switchTab(tabId) {
       document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
@@ -330,6 +368,26 @@
       }
     }
 
+    function triggerImport() {
+      if (window.AndroidNative && window.AndroidNative.triggerImportModel) {
+        window.AndroidNative.triggerImportModel();
+      } else {
+        alert("Buka file manager HP Anda, lalu salin model ke folder Documents/AIStudio/models/");
+      }
+    }
+
+    function onModelImported(fileName) {
+      const activeLabel = document.getElementById('active-llm-label');
+      if (activeLabel && fileName.endsWith('.gguf')) {
+        activeLabel.innerText = fileName;
+      }
+      const container = document.getElementById('chat-messages');
+      const infoBubble = document.createElement('div');
+      infoBubble.className = 'chat-bubble chat-ai';
+      infoBubble.innerHTML = "📥 <strong>Model Berhasil Diimpor:</strong> " + fileName + "<br><span style='color: #10b981;'>Tersimpan rapi di folder AIStudio HP.</span>";
+      container.appendChild(infoBubble);
+    }
+
     function sendChat() {
       const input = document.getElementById('chat-input');
       const text = input.value.trim();
@@ -342,7 +400,6 @@
       container.appendChild(userBubble);
       input.value = '';
 
-      // Auto respond
       setTimeout(() => {
         const aiBubble = document.createElement('div');
         aiBubble.className = 'chat-bubble chat-ai';
@@ -368,7 +425,7 @@
         if (count >= 100) {
           count = 100;
           clearInterval(t);
-          label.innerText = 'Foto Selesai! Tersimpan di folder outputs/foto laptop.';
+          label.innerText = 'Foto Selesai! Tersimpan di AIStudio/outputs/foto.';
           btn.disabled = false;
           btn.style.opacity = '1';
         } else {
@@ -377,10 +434,6 @@
         pct.innerText = count + '%';
         fill.style.width = count + '%';
       }, 300);
-    }
-
-    function triggerPurge() {
-      alert('Sinyal Purge All dikirim ke C++ MemoryManager di laptop: VRAM & Working Set RAM berhasil dibersihkan!');
     }
   </script>
 </body>

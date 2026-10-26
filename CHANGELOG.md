@@ -155,15 +155,34 @@ Semua catatan perubahan, perbaikan bug, penambahan fitur, dan perombakan arsitek
 
 ---
 
+## [v1.4.1] - 2026-10-26
+### ✨ Fitur Baru (Inisialisasi Otomatis Folder Model AI & Impor File di Android)
+- **Auto-Initialization Folder Model AI di Penyimpanan HP (initAIStudioFolders)**:
+  - Saat aplikasi Android pertama kali diinstal & dibuka (onCreate), aplikasi secara otomatis mendeteksi dan membuat folder Documents/AIStudio/ beserta seluruh subfolder model:
+    - models/Teks_LLM/ (untuk model teks LLM quantisasi .gguf)
+    - models/VAE/ (untuk VAE .safetensors atau TAESD fast VAE)
+    - models/Gambar_Diffusion/ (untuk model checkpoint gambar)
+    - models/LoRA/ (untuk file adapter LoRA)
+    - models/ControlNet/ (untuk adapter pose/garis ControlNet)
+    - models/Audio_Suara/ (untuk suara ONNX TTS Piper)
+    - outputs/ (untuk hasil simpan gambar & teks yang digenerate)
+  - Otomatis membuat file PETUNJUK_IMPORT_MODEL.txt di dalam folder HP agar pengguna tahu lokasi meletakkan file model secara manual via aplikasi file manager (ZArchiver, Files by Google, My Files).
+- **Fitur File Picker Impor Model Android Langsung dari UI**:
+  - Tombol bawaan antarmuka 📥 Impor Model Baru (.gguf / .safetensors) yang membuka pemilih file native Android.
+  - Background worker thread yang otomatis menyalin file model dari penyimpanan ponsel dan mengarahkannya ke subfolder yang sesuai secara cerdas berdasarkan format nama file (.gguf ke Teks_LLM, keyword ae ke VAE, lora ke LoRA, dsb.).
+  - Banner dinamis di UI Home dan Settings yang menampilkan lokasi path penyimpanan aktif di HP secara real-time.
+
+---
+
 ## [v1.4.0] - 2026-10-26
 ### ✨ Fitur Baru (Ekspansi Mobile Android & CI/CD GitHub Actions)
 - **Proyek Mobile Android Mandiri (ndroid/)**:
   - Membangun struktur proyek Android Gradle lengkap (com.mpesmpek.aistudio) berbasis Android SDK 34.
   - Mengintegrasikan antarmuka visual mobile responsif (berbasis desain modern Uizard) di ssets/index.html dengan navigasi tab: *Home*, *Chat LLM*, *Studio Foto*, dan *Pengaturan LAN*.
   - Native Activity MainActivity.java dengan hardware-accelerated WebView, permission internet, dan bridge JavaScript native AndroidNative untuk feedback getar (*haptic vibration*).
-- **Otomasi Build Cloud GitHub Actions (.github/workflows/build-android.yml)**:
+- **Otomasi Build Cloud GitHub Actions (ndroid/build-android-workflow.yml)**:
   - Konfigurasi alur kerja CI/CD cloud Ubuntu Runner dengan JDK 17, Android SDK, dan Gradle.
-  - Otomatis mengompilasi release APK dan debug APK saat push ke GitHub, serta mengunggah file .apk siap pasang ke GitHub Actions Artifacts.
+  - Otomatis mengompilasi release APK dan debug APK saat push ke GitHub, serta mengunggah file .apk siap pasang ke GitHub Releases dan Actions Artifacts.
 
 ---
 

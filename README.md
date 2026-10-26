@@ -64,10 +64,34 @@ Pengguna **tidak perlu mengompilasi kode sumber C++ secara manual**. Paket biner
 │   ├── ControlNet/            # Pose lock model Canny
 │   └── Audio_Suara/           # Model ONNX TTS Piper
 ├── outputs/                   # Folder hasil output gambar, audio, & video
+├── android/                   # Proyek mandiri AI Studio Mobile (Android Native)
+│   ├── app/src/main/assets/   # Antarmuka WebView responsif & modern
+│   └── app/src/main/java/     # MainActivity.java (Auto-Folder & Impor Model)
 ├── tools/                     # Skrip otomasi batch (Kompilasi & Benchmark)
 ├── compile_step_by_step.bat   # Skrip kompilasi inkremental (-O3 AVX2 SIMD)
-└── CHANGELOG.md               # Riwayat perubahan terstruktur dari v0.0.1 ke v1.1.3
+└── CHANGELOG.md               # Riwayat perubahan terstruktur dari v0.0.1 ke v1.4.1
 ```
+
+---
+
+## 📱 AI Studio Mobile (Android)
+
+AI Studio kini memiliki edisi mobile mandiri di folder `android/`:
+- **Auto-Initialization Folder Penyimpanan Model**:
+  Saat pertama kali diinstal & dijalankan di ponsel Android, aplikasi secara otomatis membuat struktur folder di memori perangkat:
+  ```text
+  Documents/AIStudio/
+  ├── models/
+  │   ├── Teks_LLM/           # Tempat file model .gguf
+  │   ├── VAE/                # File VAE / TAESD
+  │   ├── Gambar_Diffusion/   # File .safetensors checkpoint foto
+  │   ├── LoRA/               # File adapter .safetensors
+  │   ├── ControlNet/         # File pose adapter
+  │   └── Audio_Suara/        # Model TTS ONNX
+  └── outputs/                # Folder simpan gambar & teks
+  ```
+- **Fitur Impor Model Otomatis**:
+  Dilengkapi tombol `📥 Impor Model Baru` di dalam aplikasi untuk memilih file `.gguf` atau `.safetensors` dari ponsel dan langsung menyalinnya ke folder yang sesuai secara otomatis.
 
 ---
 
@@ -90,7 +114,7 @@ Hasil biner executable: **`AI-Studio.exe`** (~2.39 MB).
 
 ## 📋 Riwayat Versi (Changelog)
 
-Catatan rilis lengkap dari versi awal `v0.0.1` hingga build terbaru `v1.1.3` dapat dilihat pada dokumen:
+Catatan rilis lengkap dari versi awal `v0.0.1` hingga build terbaru `v1.4.1` dapat dilihat pada dokumen:
 👉 **[CHANGELOG.md](CHANGELOG.md)**
 
 ---
