@@ -2031,11 +2031,6 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
         else if (g_resolution_idx == 2) { out_w = 768; out_h = 512; }
 
         actual_steps = (steps > 0) ? steps : 20;
-        if (!g_turbo_mode && model_path.find("LCM") == std::string::npos && model_path.find("lcm") == std::string::npos) {
-            if (is_fullbody_shot && g_fullbody_face_fix && actual_steps < 25) {
-                actual_steps = 25; // Optimalkan steps ke 25 agar UNet memiliki iterasi cukup untuk mendetailkan wajah & jari pada shot full body
-            }
-        }
         float actual_cfg = cfg;
         std::string lora_dir_arg = "";
         if (GetFileAttributesA("models\\LoRA") != INVALID_FILE_ATTRIBUTES) {
@@ -2044,11 +2039,23 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
 
         std::string final_safe_prompt = safe_prompt;
 
-        if (g_turbo_mode || model_path.find("LCM") != std::string::npos || model_path.find("lcm") != std::string::npos) {
-            actual_steps = 4;
-            actual_cfg = 1.8f;
-            // Jika model standar SD 1.5 dijalankan di mode Turbo, lampirkan LoRA LCM agar proses 4-step tajam
-            if (model_path.find("LCM") == std::string::npos && model_path.find("lcm") == std::string::npos && GetFileAttributesA("models\\LoRA\\lcm_lora_sd15.safetensors") != INVALID_FILE_ATTRIBUTES) {
+        // Model LCM atau Mode Turbo: BEBAS ATUR STEPS (tidak lagi dikunci 4 steps!)
+        bool is_lcm_model = (model_path.find("LCM") != std::string::npos || model_path.find("lcm") != std::string::npos);
+        if (g_turbo_mode || is_lcm_model) {
+            // Patuhi 100% nilai steps pilihan pengguna! Jika belum diatur, default ke 4 untuk LCM
+            actual_steps = (steps > 0) ? steps : 4;
+
+            // CFG adaptif agar gambar tetap halus dan tidak gosong/over-saturated saat steps dinaikkan
+            if (actual_steps <= 8) {
+                actual_cfg = 1.8f;
+            } else if (actual_steps <= 15) {
+                actual_cfg = 2.5f;
+            } else {
+                actual_cfg = 3.5f;
+            }
+
+            // Jika model standar SD 1.5 dijalankan di mode Turbo, lampirkan LoRA LCM agar proses cepat tetap tajam
+            if (!is_lcm_model && GetFileAttributesA("models\\LoRA\\lcm_lora_sd15.safetensors") != INVALID_FILE_ATTRIBUTES) {
                 if (final_safe_prompt.find("lcm_lora_sd15") == std::string::npos) {
                     final_safe_prompt += " <lora:lcm_lora_sd15:1.0>";
                 }
@@ -4174,7 +4181,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // ------------------ OPSI KONTEKSTUAL BAWAH ------------------
         if (g_selected_mode == 2 || g_selected_mode == 3) {
             // MODE DIFUSI FOTO / NSFW
-            ImGui::SetNextItemWidth(155.0f);
+            ImGui::SetNextItemWidth(140.0f);
             ImGui::Combo("##PromptAssistMode", &g_prompt_assist_mode, g_prompt_assist_names, IM_ARRAYSIZE(g_prompt_assist_names));
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip(
@@ -4189,7 +4196,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             ImGui::TextDisabled("|");
             ImGui::SameLine();
 
-            ImGui::SetNextItemWidth(130.0f);
+            ImGui::SetNextItemWidth(115.0f);
             ImGui::Combo("##FramingSelector", &g_framing_idx, g_framing_names, IM_ARRAYSIZE(g_framing_names));
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip(
@@ -4205,7 +4212,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             ImGui::TextDisabled("|");
             ImGui::SameLine();
 
-            ImGui::SetNextItemWidth(125.0f);
+            ImGui::SetNextItemWidth(115.0f);
             ImGui::Combo("##ResolutionSelector", &g_resolution_idx, g_resolutions, IM_ARRAYSIZE(g_resolutions));
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip(
@@ -4213,6 +4220,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     "- 512 x 512: Persegi Kotak (1:1), proses paling cepat.\n"
                     "- 512 x 768: Potret Vertikal (2:3), ruang vertikal luas ideal untuk Full Body.\n"
                     "- 768 x 512: Lanskap Mendatar (3:2), cocok untuk pemandangan & mobil."
+                );
+            }
+
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+
+            // PENGATUR STEPS BEBAS (1 - 50 Langkah Sampling)
+            ImGui::SetNextItemWidth(110.0f);
+            ImGui::SliderInt("##StepsSlider", &g_image_steps, 1, 50, "Steps: %d");
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip(
+                    "Langkah Sampling (Denoising Steps: 1 - 50):\n"
+                    "Bebas diatur sesuka hati untuk semua model:\n\n"
+                    "- 4 - 8 Steps: Draft kilat (~3-5 detik, cocok untuk DreamShaper LCM).\n"
+                    "- 20 - 25 Steps: Kualitas tajam seimbang untuk CyberRealistic & Realistic Vision.\n"
+                    "- 30 - 50 Steps: Kualitas maksimal & sangat mulus! Detail mikro pori kulit, mata, dan helai rambut dipoles ekstra teliti.\n\n"
+                    "Makin banyak step, AI membersihkan noise makin halus dan detail makin tajam!"
                 );
             }
 
@@ -4234,7 +4259,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 ImGui::TextDisabled("|");
                 ImGui::SameLine();
 
-                if (ImGui::Button("📷 Foto Acuan", ImVec2(105, 24))) {
+                if (ImGui::Button("Foto Acuan", ImVec2(90, 24))) {
                     std::string chosen = OpenImageFileDialog(g_hMainWnd);
                     if (!chosen.empty()) {
                         SetInitImage(chosen.c_str());
@@ -4492,7 +4517,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 }
 
                 if (ImGui::CollapsingHeader("Parameter Foto (Diffusion)", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    ImGui::SliderInt("Langkah Inferensi (Steps)", &g_image_steps, 4, 30);
+                    ImGui::SliderInt("Langkah Inferensi (Steps)", &g_image_steps, 1, 50);
                     HelpBadgeSimple(
                         "Langkah Inferensi (Denoising Steps)",
                         "Jumlah tahapan AI membersihkan noise menjadi foto jernih.\n- 4 steps: Draft kilat khusus Turbo LCM.\n- 20-25 steps: Kualitas foto seimbang, tajam, dan realistis.\n- 30 steps: Detail ekstra padat.",
