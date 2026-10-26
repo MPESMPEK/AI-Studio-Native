@@ -26,6 +26,7 @@
 #include "../imgui/imgui_impl_dx11.h"
 #include "../include/engine_core.h"
 #include "../include/memory_manager.h"
+#include "../include/hardware_telemetry.h"
 #include "../imgui/imgui_internal.h"
 
 // Forward declare message handler from imgui_impl_win32.cpp
@@ -2190,7 +2191,91 @@ void RenderWhatsAppBubble(const ChatMsg& msg, float chat_w, int idx) {
     ImGui::Dummy(ImVec2(0, 6)); // Spacing antar bubble
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+
+// ================= STATUS BAR TELEMETRI HARDWARE DIRECT3D 11 =================
+void RenderD3D11StatusBar(float app_width, float app_height) {
+    const float bar_height = 28.0f;
+    ImGui::SetCursorPos(ImVec2(0, app_height - bar_height));
+
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.045f, 0.065f, 0.100f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.120f, 0.160f, 0.230f, 1.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f, 5.0f));
+
+    if (ImGui::BeginChild("D3D11StatusBar", ImVec2(app_width, bar_height), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+        HardwareTelemetrySnapshot snap = HardwareTelemetry::Get().GetSnapshot();
+
+        // 1. RAM Usage Meter
+        ImVec4 ram_col = ImVec4(0.10f, 0.85f, 0.55f, 1.0f);
+        if (snap.ram_percent >= 85.0f) {
+            ram_col = ImVec4(0.95f, 0.25f, 0.30f, 1.0f);
+        } else if (snap.ram_percent >= 75.0f) {
+            ram_col = ImVec4(0.95f, 0.70f, 0.20f, 1.0f);
+        }
+
+        ImGui::TextColored(ram_col, "RAM: %.1f%%", snap.ram_percent);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Memori Fisik Terpakai: %llu MB / %llu MB (Sisa Bebas: %llu MB)",
+                (unsigned long long)snap.ram_used_mb,
+                (unsigned long long)snap.ram_total_mb,
+                (unsigned long long)snap.ram_free_mb);
+        }
+
+        ImGui::SameLine();
+        ImGui::TextDisabled("|");
+        ImGui::SameLine();
+
+        // 2. CPU Usage & Logical Threads
+        ImVec4 cpu_col = (snap.cpu_usage_percent > 80.0f) ? ImVec4(0.95f, 0.40f, 0.20f, 1.0f) : ImVec4(0.40f, 0.75f, 0.95f, 1.0f);
+        ImGui::TextColored(cpu_col, "CPU: %.1f%% (%u Cores, %u Threads)",
+            snap.cpu_usage_percent, (unsigned int)snap.total_logical_cores, (unsigned int)snap.active_engine_threads);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Beban Kerja CPU Total dan Thread Komputasi AI AVX2 Aktif");
+        }
+
+        ImGui::SameLine();
+        ImGui::TextDisabled("|");
+        ImGui::SameLine();
+
+        // 3. Instruction Set Capabilities (AVX2 / FMA)
+        if (snap.has_avx2) {
+            ImGui::TextColored(ImVec4(0.20f, 0.90f, 0.70f, 1.0f), "AVX2+FMA");
+        } else {
+            ImGui::TextColored(ImVec4(0.80f, 0.80f, 0.40f, 1.0f), "SSE4.2");
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Ekstensi Vektor SIMD CPU: %s", snap.has_avx2 ? "AVX2 dan FMA Aktif (Auto-Vectorization -O3)" : "Standar");
+        }
+
+        ImGui::SameLine();
+        ImGui::TextDisabled("|");
+        ImGui::SameLine();
+
+        // 4. TAESD Fast VAE Decode
+        if (snap.is_taesd_active) {
+            ImGui::TextColored(ImVec4(0.20f, 0.90f, 0.45f, 1.0f), "TAESD: AKTIF");
+        } else {
+            ImGui::TextDisabled("TAESD: OFF");
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Fast Tiny AutoEncoder (TAESD): Pangkas waktu decode foto dari ~61 detik ke ~2.7 detik");
+        }
+
+        // 5. FPS & Graphics API Display
+        float right_info_w = 210.0f;
+        if (app_width > 720.0f) {
+            ImGui::SameLine(app_width - right_info_w);
+            float fps = ImGui::GetIO().Framerate;
+            ImGui::TextDisabled("D3D11 | %.1f FPS (%.1f ms)", fps, 1000.0f / (fps > 1.0f ? fps : 1.0f));
+        }
+
+        ImGui::EndChild();
+    }
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
+}
+
+int WINAPI WinMain
+(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     g_logf = fopen("cpp_core/native_gui.log", "w");
     if (g_logf) { fprintf(g_logf, "[LOG] AI Studio Native Starting...\n"); fflush(g_logf); }
 
@@ -2354,13 +2439,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         ImGui::Begin("RootWindow", NULL, root_flags);
 
+        // Sinkronisasi status engine ke modul Hardware Telemetry
+        HardwareTelemetry::Get().SetActiveEngineThreads((uint32_t)g_num_threads);
+        HardwareTelemetry::Get().SetTAESDActive(g_use_fast_vae);
+
         float sidebar_width = 280.0f;
         if (app_width < 800.0f) sidebar_width = 230.0f;
         float right_panel_width = app_width - sidebar_width - 24.0f;
         if (right_panel_width < 280.0f) right_panel_width = 280.0f;
 
         // ================= 1. SIDEBAR KIRI (FULL HEIGHT) =================
-        ImGui::BeginChild("SidebarPanel", ImVec2(sidebar_width, app_height - 16.0f), true);
+        ImGui::BeginChild("SidebarPanel", ImVec2(sidebar_width, app_height - 36.0f), true);
 
         // Logo & Brand Header
         ImGui::TextColored(ImVec4(0.22f, 0.74f, 0.97f, 1.0f), "AI STUDIO");
@@ -2842,7 +2931,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             if (g_has_attached_doc) input_card_h += 52.0f;
             float options_bar_h = (g_selected_mode == 2 || g_selected_mode == 3) ? 36.0f : 32.0f;
             float input_area_h = 60.0f + options_bar_h + input_card_h;
-            float chat_canvas_h = app_height - 42.0f - subbar_h - input_area_h - 32.0f;
+            float chat_canvas_h = app_height - 42.0f - subbar_h - input_area_h - 48.0f;
             if (chat_canvas_h < 120.0f) chat_canvas_h = 120.0f;
 
             ImGui::BeginChild("ChatCanvas", ImVec2(right_panel_width, chat_canvas_h), true,
@@ -3766,6 +3855,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // ================= MODAL KONFIRMASI HAPUS MODEL =================
         RenderDeleteConfirmModal();
 
+        // Render Status Bar Telemetri D3D11 di bagian paling bawah
+        RenderD3D11StatusBar(app_width, app_height);
+
         ImGui::End(); // RootWindow
 
         // Rendering DirectX 11
@@ -3850,10 +3942,12 @@ bool CreateDeviceD3D(HWND hWnd) {
 
     CreateRenderTarget();
     MemoryManager::Get().Initialize(g_pd3dDevice, g_pd3dDeviceContext);
+    HardwareTelemetry::Get().Start(500);
     return true;
 }
 
 void CleanupDeviceD3D() {
+    HardwareTelemetry::Get().Stop();
     CleanupRenderTarget();
     if (g_pSwapChain) { g_pSwapChain->Release(); g_pSwapChain = NULL; }
     if (g_pd3dDeviceContext) { g_pd3dDeviceContext->Release(); g_pd3dDeviceContext = NULL; }
