@@ -75,14 +75,14 @@ Antarmuka dibangun dengan palet warna bernuansa **Cyber Studio Dark Glass**:
 
 ### A. Sidebar Kiri (Navigasi Sesi & Status Mesin)
 - **Brand Header Card**: Kartu berbingkai elegan dengan teks `⚡ AI STUDIO NATIVE` dan indikator hijau `🟢 100% C++ Direct3D 11`.
-- **Tombol Percakapan Baru**: Berada tepat di bawah logo, memudahkan pengguna membuat sesi bersih sekali klik.
+- **Top Quick Actions (+ Percakapan & ⚙️ Pengaturan)**: Tombol `[+ Percakapan]` berdampingan dengan tombol cepat gear `[⚙️]` di bagian paling atas sidebar, memungkinkan pengguna membuka pengaturan instan tanpa perlu melakukan scroll ke bawah sama sekali.
 - **Topics List**: Menggunakan perhitungan dinamis:
   $$\text{topics\_h} = \text{main\_content\_h} - \text{header\_h} - \text{footer\_h}$$
-  Menjamin daftar obrolan dapat di-scroll vertikal dan **tidak akan pernah** mendorong tombol Pengaturan/Output ke luar layar.
-- **Hardware Telemetry Card & Footer**: Kartu real-time penggunaan RAM dengan micro-progress bar, status thread CPU AVX2, kartu grafis GPU, serta tombol `[⚙️ Pengaturan]` dan `[📁 Output]`.
+  Menggunakan `ImGuiWindowFlags_NoScrollbar` pada container induk sidebar, menjamin daftar obrolan dapat di-scroll vertikal secara mandiri dan **tidak akan pernah** mendorong tombol Pengaturan/Output ke luar layar.
+- **Hardware Telemetry Card & Footer**: Kartu real-time penggunaan RAM dengan micro-progress bar, status thread CPU AVX2, kartu grafis GPU, serta tombol `[⚙️ Pengaturan]` dan `[📁 Output]` yang selalu terpancang kokoh di bawah tanpa tertutup atau tergeser.
 
 ### B. Workspace Kanan (Studio Kreatif)
-- **Top Navbar**: 6 tab mode utama (`Home`, `Chat AI`, `Studio Foto`, `Dewasa 18+`, `Video AI`, `Suara AI`), dropdown model aktif yang otomatis menyesuaikan lebar, tombol `[+ Model]` untuk impor berkas model lokal, dan tombol `[⛶ Layar Penuh]`.
+- **Top Navbar**: 6 tab mode utama (`Home`, `Chat AI`, `Studio Foto`, `Dewasa 18+`, `Video AI`, `Suara AI`), dropdown model aktif yang otomatis menyesuaikan lebar, tombol `[+ Model]` untuk impor berkas model lokal, tombol `[⛶ Layar Penuh]`, serta tombol `[⚙️ Pengaturan]` yang selalu terpampang jelas di pojok kanan atas layar dengan akses 1-klik tanpa scroll.
 - **Sub-Navbar Preset**: Menampilkan preset fotografi instan (`Sensual Bedroom`, `Pantai Glamour`, `Fine Art Nude`, `Fitness Model`, `Full Body`), serta saklar fitur tanpa tombol tanda tanya yang berdesakan.
 - **Chat Canvas**: Menampilkan balon percakapan Direct3D 11. Balon respons AI otomatis menyaring tag berpikir reasoning (`💭 [Pemikiran Logika DeepSeek]`) dan menampilkan teks bersih.
 - **Bottom Input Dock & Options Ribbon**:

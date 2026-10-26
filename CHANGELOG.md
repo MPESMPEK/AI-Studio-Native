@@ -155,6 +155,19 @@ Semua catatan perubahan, perbaikan bug, penambahan fitur, dan perombakan arsitek
 
 ---
 
+## [v1.5.2] - 2026-10-26
+### 🎨 Peningkatan UI/UX (Aksesibilitas Tombol Pengaturan Tanpa Perlu Scroll)
+- **Tombol Pintas ⚙️ Pengaturan di Top Navbar (Pojok Kanan Atas)**:
+  - Tombol `[⚙️ Pengaturan]` kini disematkan langsung pada Top Navbar di samping tombol `[⛶ Layar Penuh]`. Pengguna dapat membuka menu pengaturan, memilih batas RAM, atau konfigurasi hardware dalam 1 klik dari mana saja tanpa perlu scroll.
+  - Bersifat adaptif: Menampilkan teks `⚙️ Pengaturan` pada layar normal/lebar dan ikon ringkas `⚙️` pada resolusi sempit (< 780px).
+- **Tombol Cepat Gear ⚙️ di Header Sidebar**:
+  - Menyandingkan tombol `[+ Percakapan]` dengan tombol gear `[⚙️]` di bagian paling atas sidebar tepat di bawah logo brand, memberikan akses langsung ke pengaturan saat mengelola percakapan.
+- **Pembersihan Scrollbar Liar & Penyelarasan Footer Sidebar (Zero Footer Clipping)**:
+  - Menetapkan flag `ImGuiWindowFlags_NoScrollbar` pada container utama `SidebarPanel`, memastikan panel samping tidak pernah memunculkan scrollbar ganda.
+  - Memadatkan kartu telemetri hardware dan RAM badge sehingga tombol `[⚙️ Pengaturan]` dan `[📁 Output]` di bagian bawah sidebar selalu terpampang utuh 100% dan tidak pernah terdorong keluar layar.
+
+---
+
 ## [v1.5.1] - 2026-10-26
 ### ⚡ Fitur Baru (Menu Batas RAM & Mode Los RAM / Instant Purge)
 - **Menu Pilihan Profil Alokasi RAM (Batas RAM vs Los RAM)**:

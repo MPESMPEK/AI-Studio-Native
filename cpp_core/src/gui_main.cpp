@@ -2636,7 +2636,7 @@ int WINAPI WinMain
         if (right_panel_width < 280.0f) right_panel_width = 280.0f;
 
         // ================= 1. SIDEBAR KIRI (FULL HEIGHT DENGAN BATAS STATUS BAR) =================
-        ImGui::BeginChild("SidebarPanel", ImVec2(sidebar_width, main_content_h), true);
+        ImGui::BeginChild("SidebarPanel", ImVec2(sidebar_width, main_content_h), true, ImGuiWindowFlags_NoScrollbar);
 
         // Logo & Brand Header Card
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.040f, 0.060f, 0.095f, 0.95f));
@@ -2655,22 +2655,37 @@ int WINAPI WinMain
         ImGui::PopStyleColor(2);
         ImGui::Spacing();
 
-        // Tombol Percakapan Baru
+        // Tombol Aksi Cepat: Percakapan Baru & Pengaturan (Langsung Tampak di Atas Tanpa Perlu Scroll)
+        float avail_hdr_w = ImGui::GetContentRegionAvail().x;
+        float btn_settings_w = 40.0f;
+        float btn_new_chat_w = avail_hdr_w - btn_settings_w - 6.0f;
+
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.38f, 0.65f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.50f, 0.82f, 1.0f));
-        if (ImGui::Button("+ Percakapan Baru", ImVec2(-1, 34))) {
+        if (ImGui::Button("+ Percakapan", ImVec2(btn_new_chat_w, 34))) {
             CreateNewSession();
         }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Mulai Percakapan / Sesi Baru");
+        ImGui::PopStyleColor(2);
+
+        ImGui::SameLine();
+
+        ImGui::PushStyleColor(ImGuiCol_Button, g_show_settings ? ImVec4(0.22f, 0.48f, 0.88f, 1.0f) : ImVec4(0.14f, 0.22f, 0.34f, 0.90f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.55f, 0.98f, 1.0f));
+        if (ImGui::Button("⚙️", ImVec2(btn_settings_w, 34))) {
+            g_show_settings = !g_show_settings;
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Buka Menu Pengaturan & Batas RAM (Mudah & Cepat)");
         ImGui::PopStyleColor(2);
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Hitung tinggi daftar percakapan secara dinamis agar Telemetri & Tombol Pengaturan selalu tampak sempurna!
-        const float sidebar_header_h = 96.0f;
-        const float sidebar_footer_h = 176.0f; // Disesuaikan untuk kartu status, indikator batas RAM & tombol Los RAM
+        // Hitung tinggi daftar percakapan secara dinamis agar Telemetri & Tombol Pengaturan selalu tampak sempurna tanpa scroll!
+        const float sidebar_header_h = 100.0f;
+        const float sidebar_footer_h = 158.0f; // Pas dengan kartu status hardware & tombol footer
         float topics_h = main_content_h - sidebar_header_h - sidebar_footer_h;
-        if (topics_h < 70.0f) topics_h = 70.0f;
+        if (topics_h < 60.0f) topics_h = 60.0f;
 
         // Daftar Percakapan / Topics (Scrollable)
         ImGui::BeginChild("TopicsList", ImVec2(-1, topics_h), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
@@ -2741,21 +2756,21 @@ int WINAPI WinMain
         bool is_rtx_active = (g_hardware_backend_mode == 2 || (g_hardware_backend_mode == 0 && g_hw_profile.has_nvidia_gpu));
 
         ImGui::TextDisabled("STATUS HARDWARE");
+        ImGui::SameLine();
+        const char* ram_badge = (g_ram_limit_mode == 0) ? "⚡ Los RAM" : ((g_ram_limit_mode == 1) ? "🛡️ 4 GB" : ((g_ram_limit_mode == 2) ? "⚖️ 6 GB" : "⚡ 8 GB"));
+        ImGui::TextColored(g_ram_limit_mode == 0 ? ImVec4(0.35f, 0.85f, 1.0f, 1.0f) : ImVec4(0.95f, 0.85f, 0.35f, 1.0f), "(%s)", ram_badge);
+
         ImGui::Text("RAM: %.1f / %.1f GB", used_ram_gb, total_ram_gb);
         ImGui::ProgressBar(ram_fraction, ImVec2(-1, 5), "");
 
-        // Mode RAM Badge & Tombol Cepat Los RAM
-        const char* ram_badge = (g_ram_limit_mode == 0) ? "⚡ Mode: Los RAM" : ((g_ram_limit_mode == 1) ? "🛡️ Batas 4 GB" : ((g_ram_limit_mode == 2) ? "⚖️ Batas 6 GB" : "⚡ Batas 8 GB"));
-        ImGui::TextColored(g_ram_limit_mode == 0 ? ImVec4(0.35f, 0.85f, 1.0f, 1.0f) : ImVec4(0.95f, 0.85f, 0.35f, 1.0f), "%s", ram_badge);
-
         if (MemoryManager::Get().IsPurging()) {
             ImGui::BeginDisabled();
-            ImGui::Button("⏳ Membersihkan...", ImVec2(-1, 24));
+            ImGui::Button("⏳ Membersihkan...", ImVec2(-1, 23));
             ImGui::EndDisabled();
         } else {
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f, 0.45f, 0.38f, 0.90f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.15f, 0.60f, 0.50f, 1.00f));
-            if (ImGui::Button("🧹 Los RAM Sekarang", ImVec2(-1, 24))) {
+            if (ImGui::Button("🧹 Los RAM Sekarang", ImVec2(-1, 23))) {
                 MemoryManager::Get().PurgeAllAsync();
             }
             if (ImGui::IsItemHovered()) {
@@ -2766,23 +2781,28 @@ int WINAPI WinMain
 
         if (is_rtx_active) {
             std::string gpu_label = g_hw_profile.gpus.empty() ? "NVIDIA RTX" : g_hw_profile.gpus[g_hw_profile.selected_gpu_idx].name;
-            if (gpu_label.length() > 24) gpu_label = gpu_label.substr(0, 22) + "..";
-            ImGui::TextColored(ImVec4(0.2f, 0.95f, 0.4f, 1.0f), "GPU: %s", gpu_label.c_str());
-            ImGui::TextDisabled("Akselerasi: CUDA RTX Active");
+            if (gpu_label.length() > 22) gpu_label = gpu_label.substr(0, 20) + "..";
+            ImGui::TextColored(ImVec4(0.2f, 0.95f, 0.4f, 1.0f), "%s (CUDA)", gpu_label.c_str());
         } else {
-            ImGui::TextDisabled("CPU: %d Thread | AVX2 + TAESD Fast", g_num_threads);
+            ImGui::TextDisabled("CPU: %d Th | AVX2+TAESD", g_num_threads);
         }
         ImGui::Spacing();
 
-        // Tombol Pengaturan & Outputs di Footer Sidebar
+        // Tombol Pengaturan & Outputs di Footer Sidebar (Always Visible!)
         float footer_btn_w = (sidebar_width - 24.0f) * 0.48f;
-        if (ImGui::Button("Pengaturan", ImVec2(footer_btn_w, 28))) {
+        ImGui::PushStyleColor(ImGuiCol_Button, g_show_settings ? ImVec4(0.22f, 0.48f, 0.88f, 1.0f) : ImVec4(0.14f, 0.22f, 0.34f, 0.90f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.55f, 0.98f, 1.0f));
+        if (ImGui::Button("⚙️ Pengaturan", ImVec2(footer_btn_w, 28))) {
             g_show_settings = !g_show_settings;
         }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Buka Pengaturan Studio, Batas RAM & AI");
+        ImGui::PopStyleColor(2);
+
         ImGui::SameLine();
-        if (ImGui::Button("Output", ImVec2(footer_btn_w, 28))) {
+        if (ImGui::Button("📁 Output", ImVec2(footer_btn_w, 28))) {
             ShellExecuteA(NULL, "open", "outputs", NULL, NULL, SW_SHOWNORMAL);
         }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Buka folder penyimpanan gambar & teks");
 
         ImGui::EndChild(); // SidebarPanel
 
@@ -2848,9 +2868,10 @@ int WINAPI WinMain
         ImGui::SameLine();
 
         float remaining_nav_w = ImGui::GetContentRegionAvail().x;
-        float combo_w = remaining_nav_w - 185.0f;
-        if (combo_w > 240.0f) combo_w = 240.0f;
-        if (combo_w < 130.0f) combo_w = 130.0f;
+        bool compact_nav = (right_panel_width < 780.0f);
+        float combo_w = remaining_nav_w - (compact_nav ? 245.0f : 315.0f);
+        if (combo_w > 220.0f) combo_w = 220.0f;
+        if (combo_w < 95.0f) combo_w = 95.0f;
 
         if (g_selected_mode == 2 || g_selected_mode == 3) {
             ImGui::SetNextItemWidth(combo_w);
@@ -2885,13 +2906,23 @@ int WINAPI WinMain
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button(g_is_borderless_fullscreen ? "🗗 Normal" : "⛶ Layar Penuh", ImVec2(100, 26))) {
+        if (ImGui::Button(g_is_borderless_fullscreen ? "🗗 Normal" : "⛶ Layar Penuh", ImVec2(98, 26))) {
             ToggleBorderlessFullscreen(g_hMainWnd);
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Buka Layar Penuh (Borderless Fullscreen). Shortcut: Tekan F11");
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Pasang Model .GGUF / .safetensors baru dari laptop Anda");
+
+        // TOMBOL PENGATURAN DI TOP NAVBAR (Langsung Tampak Jelas di Atas Layar!)
+        ImGui::SameLine();
+        float settings_nav_w = compact_nav ? 34.0f : 112.0f;
+        const char* settings_nav_lbl = compact_nav ? "⚙️" : "⚙️ Pengaturan";
+
+        ImGui::PushStyleColor(ImGuiCol_Button, g_show_settings ? ImVec4(0.20f, 0.45f, 0.90f, 1.0f) : ImVec4(0.14f, 0.22f, 0.35f, 0.90f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.55f, 0.98f, 1.0f));
+        if (ImGui::Button(settings_nav_lbl, ImVec2(settings_nav_w, 26))) {
+            g_show_settings = !g_show_settings;
         }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Buka Pengaturan Studio, Batas RAM, Model & Konfigurasi Hardware");
+        ImGui::PopStyleColor(2);
 
         ImGui::EndChild(); // TopNavbar
 
