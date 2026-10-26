@@ -460,6 +460,18 @@ void ClearAttachedDocument() {
 }
 
 static std::string ReadArchiveEntryViaTar(const std::string& archivePath, const std::string& entryName, size_t maxBytes = 150000) {
+    // Audit Keamanan: Cegah Command Injection via nama file jahat
+    if (archivePath.empty() || entryName.empty()) return "";
+    for (char c : archivePath) {
+        if (c == '"' || c == '&' || c == '|' || c == ';' || c == '`' || c == '^' || c == '<' || c == '>' || c == '\n' || c == '\r') {
+            return "";
+        }
+    }
+    for (char c : entryName) {
+        if (c == '"' || c == '&' || c == '|' || c == ';' || c == '`' || c == '^' || c == '<' || c == '>' || c == '\n' || c == '\r') {
+            return "";
+        }
+    }
     char cmd[MAX_PATH + 200];
     snprintf(cmd, sizeof(cmd), "tar.exe -xf \"%s\" -O \"%s\"", archivePath.c_str(), entryName.c_str());
     FILE* pipe = _popen(cmd, "rb");
@@ -1056,8 +1068,11 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
         else if (c == '\n' || c == '\r') safe_prompt += " ";
         else safe_prompt += c;
     }
+    while (!safe_prompt.empty() && safe_prompt.back() == '\\') {
+        safe_prompt.pop_back();
+    }
 
-    char cmd[4096] = {0};
+    char cmd[8192] = {0};
     std::string out_img_path = "";
     int out_w = 512;
     int out_h = 512;
@@ -1183,6 +1198,9 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
             if (c == '"') safe_neg += "\\\"";
             else if (c == '\n' || c == '\r') safe_neg += " ";
             else safe_neg += c;
+        }
+        while (!safe_neg.empty() && safe_neg.back() == '\\') {
+            safe_neg.pop_back();
         }
 
         std::string controlnet_arg = "";
@@ -1517,6 +1535,10 @@ static void LoadSessionsFromDisk(ID3D11Device* pDevice) {
             if (p1 != std::string::npos) {
                 ChatSession sess;
                 sess.id = sline.substr(0, p1);
+                // Audit Keamanan: Cegah Path Traversal pada ID riwayat chat
+                if (sess.id.find("..") != std::string::npos || sess.id.find('/') != std::string::npos || sess.id.find('\\') != std::string::npos) {
+                    continue;
+                }
                 if (p2 != std::string::npos) {
                     sess.title = sline.substr(p1 + 1, p2 - (p1 + 1));
                     sess.last_time = sline.substr(p2 + 1);
@@ -2560,12 +2582,16 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
                 g_has_init_image = false;
             }
 
-            strcpy(g_input_prompt, final_exec_prompt.c_str());
-            strcpy(g_negative_prompt, final_exec_neg.c_str());
+            strncpy(g_input_prompt, final_exec_prompt.c_str(), sizeof(g_input_prompt) - 1);
+            g_input_prompt[sizeof(g_input_prompt) - 1] = '\0';
+            strncpy(g_negative_prompt, final_exec_neg.c_str(), sizeof(g_negative_prompt) - 1);
+            g_negative_prompt[sizeof(g_negative_prompt) - 1] = '\0';
             g_image_steps = exec_steps;
             g_cfg_scale = exec_cfg;
             g_resolution_idx = exec_res_idx;
             g_use_controlnet = exec_cnet_enabled;
+            g_sampling_method_idx = pSampler ? pSampler->sampler_idx : g_sampling_method_idx;
+            g_selected_photo = exec_model_idx;
 
             ChatMsg userMsg;
             userMsg.role = "Pengguna (Studio Node)";
@@ -3748,9 +3774,9 @@ void RenderFullscreenImageModal(float app_width, float app_height) {
         // Bottom action bar
         ImGui::SetCursorPos(ImVec2(24.0f, app_height - 48.0f));
         if (ImGui::Button("[Dir] Buka di File Explorer", ImVec2(190, 32))) {
-            char cmd[MAX_PATH + 50];
-            snprintf(cmd, sizeof(cmd), "explorer.exe /select,\"%s\"", g_fullscreen_image_path.c_str());
-            system(cmd);
+            // Audit Keamanan: Gunakan ShellExecuteA langsung, tanpa cmd.exe shell invoke
+            std::string params = "/select,\"" + g_fullscreen_image_path + "\"";
+            ShellExecuteA(NULL, "open", "explorer.exe", params.c_str(), NULL, SW_SHOWNORMAL);
         }
         ImGui::SameLine();
         if (ImGui::Button("[Img] Buka di Windows", ImVec2(210, 32))) {
