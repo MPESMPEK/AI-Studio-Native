@@ -1615,48 +1615,50 @@ static void DeleteSession(int idx) {
 
 void ApplyModernDarkTheme() {
     ImGuiStyle& style = ImGui::GetStyle();
-    style.WindowRounding    = 10.0f;
-    style.ChildRounding     = 8.0f;
-    style.FrameRounding     = 6.0f;
-    style.PopupRounding     = 8.0f;
-    style.ScrollbarRounding = 8.0f;
-    style.GrabRounding      = 6.0f;
-    style.TabRounding       = 6.0f;
+    // iOS Liquid Glass Curvature & Pill Geometry (VisionOS / iOS 18 Design Language)
+    style.WindowRounding    = 14.0f;
+    style.ChildRounding     = 12.0f;
+    style.FrameRounding     = 10.0f;
+    style.PopupRounding     = 14.0f;
+    style.ScrollbarRounding = 10.0f;
+    style.GrabRounding      = 8.0f;
+    style.TabRounding       = 10.0f;
     style.FramePadding      = ImVec2(10, 6);
     style.ItemSpacing       = ImVec2(8, 6);
     style.ItemInnerSpacing  = ImVec2(6, 4);
-    style.TouchExtraPadding = ImVec2(0, 0);  // 0 Padding tambahan agar perhitungan grid presisi 100% anti-tabrak!
+    style.TouchExtraPadding = ImVec2(0, 0);  // 0 Padding tambahan agar grid presisi 100% anti-tabrak!
     style.WindowPadding     = ImVec2(12, 10);
     style.WindowBorderSize  = 0.0f;
     style.ChildBorderSize   = 1.0f;
     style.FrameBorderSize   = 1.0f;
 
     ImVec4* colors = style.Colors;
-    colors[ImGuiCol_WindowBg]             = ImVec4(0.035f, 0.050f, 0.080f, 1.00f); // #090D14
-    colors[ImGuiCol_ChildBg]              = ImVec4(0.055f, 0.080f, 0.130f, 0.95f); // #0E1421
-    colors[ImGuiCol_PopupBg]              = ImVec4(0.070f, 0.100f, 0.160f, 0.98f); // #121A29
-    colors[ImGuiCol_Border]               = ImVec4(0.140f, 0.190f, 0.280f, 0.70f); // #243047
+    // iOS Liquid Glass Palette (Frosted Deep Azure Glass + Specular Refraction Rims)
+    colors[ImGuiCol_WindowBg]             = ImVec4(0.038f, 0.052f, 0.090f, 1.00f); // Cosmic Deep Midnight
+    colors[ImGuiCol_ChildBg]              = ImVec4(0.065f, 0.095f, 0.160f, 0.80f); // Translucent Frosted Glass
+    colors[ImGuiCol_PopupBg]              = ImVec4(0.075f, 0.110f, 0.185f, 0.94f); // High-Blur Glass Popup
+    colors[ImGuiCol_Border]               = ImVec4(0.280f, 0.420f, 0.650f, 0.45f); // Specular Rim Highlight (Glass Edge Refraction)
     colors[ImGuiCol_BorderShadow]         = ImVec4(0.000f, 0.000f, 0.000f, 0.00f);
-    colors[ImGuiCol_FrameBg]              = ImVec4(0.080f, 0.120f, 0.190f, 1.00f); // #141F30
-    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.120f, 0.180f, 0.280f, 1.00f);
-    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.150f, 0.240f, 0.380f, 1.00f);
-    colors[ImGuiCol_TitleBg]              = ImVec4(0.055f, 0.080f, 0.130f, 1.00f);
+    colors[ImGuiCol_FrameBg]              = ImVec4(0.085f, 0.130f, 0.220f, 0.72f); // Indented Glass Surface
+    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.130f, 0.190f, 0.320f, 0.85f);
+    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.170f, 0.260f, 0.440f, 0.95f);
+    colors[ImGuiCol_TitleBg]              = ImVec4(0.050f, 0.075f, 0.130f, 1.00f);
     colors[ImGuiCol_TitleBgActive]        = ImVec4(0.070f, 0.110f, 0.180f, 1.00f);
-    colors[ImGuiCol_Button]               = ImVec4(0.130f, 0.350f, 0.750f, 0.90f); // Modern Electric Blue
-    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.180f, 0.450f, 0.900f, 1.00f);
-    colors[ImGuiCol_ButtonActive]         = ImVec4(0.100f, 0.280f, 0.650f, 1.00f);
-    colors[ImGuiCol_Header]               = ImVec4(0.100f, 0.150f, 0.240f, 1.00f);
-    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.160f, 0.240f, 0.380f, 1.00f);
-    colors[ImGuiCol_HeaderActive]         = ImVec4(0.130f, 0.350f, 0.750f, 1.00f);
-    colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.035f, 0.050f, 0.080f, 0.50f);
-    colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.160f, 0.220f, 0.320f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.240f, 0.340f, 0.500f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.200f, 0.500f, 0.950f, 1.00f);
-    colors[ImGuiCol_CheckMark]            = ImVec4(0.250f, 0.750f, 1.000f, 1.00f); // #40C0FF
-    colors[ImGuiCol_SliderGrab]           = ImVec4(0.250f, 0.750f, 1.000f, 1.00f);
-    colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.350f, 0.850f, 1.000f, 1.00f);
-    colors[ImGuiCol_Text]                 = ImVec4(0.940f, 0.960f, 0.980f, 1.00f);
-    colors[ImGuiCol_TextDisabled]         = ImVec4(0.500f, 0.580f, 0.680f, 1.00f);
+    colors[ImGuiCol_Button]               = ImVec4(0.120f, 0.380f, 0.780f, 0.85f); // Liquid Azure Glass
+    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.180f, 0.520f, 0.950f, 0.95f); // Glowing Liquid Highlight
+    colors[ImGuiCol_ButtonActive]         = ImVec4(0.100f, 0.320f, 0.680f, 1.00f);
+    colors[ImGuiCol_Header]               = ImVec4(0.110f, 0.200f, 0.340f, 0.85f);
+    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.160f, 0.280f, 0.460f, 0.92f);
+    colors[ImGuiCol_HeaderActive]         = ImVec4(0.140f, 0.380f, 0.780f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.035f, 0.050f, 0.080f, 0.35f);
+    colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.220f, 0.320f, 0.480f, 0.70f); // Translucent Pill
+    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.300f, 0.440f, 0.650f, 0.85f);
+    colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.250f, 0.650f, 1.000f, 0.95f);
+    colors[ImGuiCol_CheckMark]            = ImVec4(0.200f, 0.850f, 1.000f, 1.00f); // Vivid Electric Cyan
+    colors[ImGuiCol_SliderGrab]           = ImVec4(0.880f, 0.960f, 1.000f, 0.95f); // Specular Glass Bead
+    colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.250f, 0.850f, 1.000f, 1.00f);
+    colors[ImGuiCol_Text]                 = ImVec4(0.950f, 0.970f, 1.000f, 1.00f); // Crisp Crystal White
+    colors[ImGuiCol_TextDisabled]         = ImVec4(0.520f, 0.620f, 0.740f, 1.00f); // Soft Mist Slate
 }
 
 // ================= BADGE BANTUAN INTERAKTIF (?) [JIKA AKTIF vs NON-AKTIF] =================
@@ -1899,6 +1901,14 @@ static bool DrawDashboardCard(
 
     draw_list->AddRectFilled(bb.Min, bb.Max, col_bg, round_r);
     draw_list->AddRect(bb.Min, bb.Max, col_border, round_r, 0, hovered ? 1.5f : 1.0f);
+
+    // Apple Liquid Glass Specular Top Rim Reflection (Simulasi pembiasan cahaya kaca atas)
+    draw_list->AddLine(
+        ImVec2(bb.Min.x + round_r, bb.Min.y + 1.0f),
+        ImVec2(bb.Max.x - round_r, bb.Min.y + 1.0f),
+        ImColor(255, 255, 255, hovered ? 95 : 45),
+        1.0f
+    );
 
     // Garis Aksen Vertikal Kiri
     draw_list->AddRectFilled(
@@ -2152,21 +2162,24 @@ void RenderWhatsAppBubble(const ChatMsg& msg, float chat_w, int idx) {
         if (pos_x < 16.0f) pos_x = 16.0f;
         ImGui::SetCursorPosX(pos_x);
 
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.04f, 0.35f, 0.26f, 0.95f)); // #005c4b
-        ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.08f, 0.52f, 0.38f, 0.85f));
+        // User Bubble: Liquid Electric Azure Glass
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.10f, 0.42f, 0.86f, 0.88f));
+        ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.35f, 0.70f, 1.00f, 0.65f));
     } else {
         ImGui::SetCursorPosX(16.0f);
 
         if (msg.tag.find("NSFW") != std::string::npos) {
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.22f, 0.08f, 0.14f, 0.95f)); // Ruby Wine Tint
-            ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.55f, 0.15f, 0.28f, 0.85f));
+            // NSFW Bubble: Frosted Ruby Rose Glass
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.24f, 0.08f, 0.16f, 0.85f));
+            ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.85f, 0.25f, 0.45f, 0.65f));
         } else {
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.11f, 0.15f, 0.22f, 0.95f)); // #1e293b
-            ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.20f, 0.28f, 0.40f, 0.85f));
+            // AI Bubble: Frosted Deep Sapphire Glass
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.075f, 0.110f, 0.185f, 0.80f));
+            ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.280f, 0.420f, 0.650f, 0.45f));
         }
     }
 
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 14.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(14, 10));
 
@@ -2645,14 +2658,14 @@ int WINAPI WinMain
         ImGui::SetCursorPos(ImVec2(8.0f, top_margin));
 
         // ================= 1. SIDEBAR KIRI (FULL HEIGHT DENGAN BATAS STATUS BAR) =================
-        ImGui::BeginChild("SidebarPanel", ImVec2(sidebar_width, main_content_h), true, ImGuiWindowFlags_NoScrollbar);
+        ImGui::BeginChild("SidebarPanel", ImVec2(sidebar_width, main_content_h), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
-        // Logo & Brand Header Card
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.040f, 0.060f, 0.095f, 0.95f));
-        ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.120f, 0.170f, 0.260f, 0.80f));
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+        // Logo & Brand Header Card (Liquid Glass Capsule)
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.050f, 0.080f, 0.140f, 0.82f));
+        ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.320f, 0.480f, 0.720f, 0.45f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 7.0f));
-        ImGui::BeginChild("BrandHeaderCard", ImVec2(-1, 54), true, ImGuiWindowFlags_NoScrollbar);
+        ImGui::BeginChild("BrandHeaderCard", ImVec2(-1, 54), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         
         ImGui::TextColored(ImVec4(0.25f, 0.75f, 1.0f, 1.0f), "⚡ AI STUDIO");
         ImGui::SameLine();
@@ -2690,13 +2703,13 @@ int WINAPI WinMain
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Hitung tinggi daftar percakapan secara dinamis agar Telemetri & Tombol Pengaturan selalu tampak sempurna tanpa scroll!
-        const float sidebar_header_h = 92.0f;
-        const float sidebar_footer_h = 136.0f; // Pas dengan kartu status hardware & tombol footer
-        float topics_h = main_content_h - sidebar_header_h - sidebar_footer_h;
-        if (topics_h < 50.0f) topics_h = 50.0f;
+        // Hitung tinggi daftar percakapan secara dinamis agar Sidebar Kiri TERKUNCI 100% BEBAS SCROLL!
+        const float sidebar_footer_h = 168.0f; // Cadangkan ruang pasti untuk hardware card & footer buttons
+        float avail_h = ImGui::GetContentRegionAvail().y;
+        float topics_h = avail_h - sidebar_footer_h;
+        if (topics_h < 40.0f) topics_h = 40.0f;
 
-        // Daftar Percakapan / Topics (Auto-Scrollbar: Hanya muncul saat percakapan banyak!)
+        // Daftar Percakapan / Topics (Satu-satunya area di sidebar yang boleh scroll jika topik banyak)
         ImGui::BeginChild("TopicsList", ImVec2(-1, topics_h), false, 0);
         for (size_t t = 0; t < g_sessions.size(); t++) {
             bool selected = ((int)t == g_active_session_idx);
@@ -2713,7 +2726,7 @@ int WINAPI WinMain
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 6));
 
             std::string card_name = "SessionCard_" + std::to_string(t);
-            ImGui::BeginChild(card_name.c_str(), ImVec2(-1, 52), true, ImGuiWindowFlags_NoScrollbar);
+            ImGui::BeginChild(card_name.c_str(), ImVec2(-1, 52), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
             if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0)) {
                 g_active_session_idx = (int)t;
@@ -2821,7 +2834,7 @@ int WINAPI WinMain
         ImGui::BeginGroup();
 
         // A. TOP NAVBAR (Tinggi 42px)
-        ImGui::BeginChild("TopNavbar", ImVec2(right_panel_width, 42), true, ImGuiWindowFlags_NoScrollbar);
+        ImGui::BeginChild("TopNavbar", ImVec2(right_panel_width, 42), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         
         static const char* nav_mode_labels[] = { "Home", "Chat AI", "Studio Foto", "Dewasa (18+)", "Video AI", "Suara AI" };
 
@@ -3274,7 +3287,7 @@ int WINAPI WinMain
         ImGui::EndChild(); // ChatCanvas
 
         // C. BOTTOM INPUT AREA (Hanya di Kolom Kanan)
-        ImGui::BeginChild("BottomInput", ImVec2(right_panel_width, input_area_h), false, ImGuiWindowFlags_NoScrollbar);
+        ImGui::BeginChild("BottomInput", ImVec2(right_panel_width, input_area_h), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
         // Preview Lampiran Dokumen jika ada file dokumen yang dipilih
         if (g_has_attached_doc) {
@@ -3581,9 +3594,9 @@ int WINAPI WinMain
             bool two_rows = (right_panel_width < 720.0f);
             float ribbon_h = two_rows ? 58.0f : 32.0f;
 
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.045f, 0.070f, 0.115f, 0.95f));
-            ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.140f, 0.190f, 0.280f, 0.85f));
-            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.055f, 0.085f, 0.145f, 0.85f));
+            ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.280f, 0.400f, 0.620f, 0.45f));
+            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 5.0f));
             ImGui::BeginChild("PhotoOptionsRibbon", ImVec2(right_panel_width - 4.0f, ribbon_h), true, ImGuiWindowFlags_NoScrollbar);
 
@@ -3641,9 +3654,9 @@ int WINAPI WinMain
             ImGui::PopStyleColor(2);
         } else {
             // MODE TEKS (CHAT / AUTO / VIDEO / SUARA)
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.045f, 0.070f, 0.115f, 0.95f));
-            ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.140f, 0.190f, 0.280f, 0.85f));
-            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.055f, 0.085f, 0.145f, 0.85f));
+            ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.280f, 0.400f, 0.620f, 0.45f));
+            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 5.0f));
             ImGui::BeginChild("TextOptionsRibbon", ImVec2(right_panel_width - 4.0f, 32.0f), true, ImGuiWindowFlags_NoScrollbar);
 
@@ -4086,7 +4099,7 @@ int WINAPI WinMain
 
         // Rendering DirectX 11
         ImGui::Render();
-        const float clear_color_with_alpha[4] = { 0.043f, 0.059f, 0.098f, 1.0f };
+        const float clear_color_with_alpha[4] = { 0.038f, 0.052f, 0.088f, 1.0f };
         g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, NULL);
         g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear_color_with_alpha);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());

@@ -74,13 +74,13 @@ Antarmuka dibangun dengan palet warna bernuansa **Cyber Studio Dark Glass**:
 
 ## 🧩 4. Spesifikasi Komponen Utama
 
-### A. Sidebar Kiri (Navigasi Sesi & Status Mesin)
-- **Brand Header Card**: Kartu berbingkai elegan dengan teks `⚡ AI STUDIO NATIVE` dan indikator hijau `🟢 100% C++ Direct3D 11`.
+### A. Sidebar Kiri (Navigasi Sesi & Status Mesin - Fixed 100% Unscrollable)
+- **Brand Header Card**: Kartu berbingkai liquid glass elegan dengan teks `⚡ AI STUDIO NATIVE` dan indikator hijau `🟢 100% C++ Direct3D 11`. Memiliki flag `ImGuiWindowFlags_NoScrollWithMouse` untuk mengunci posisi mutlak.
 - **Top Quick Actions (+ Percakapan & ⚙️ Pengaturan)**: Tombol `[+ Percakapan]` berdampingan dengan tombol cepat gear `[⚙️]` di bagian paling atas sidebar, memungkinkan pengguna membuka pengaturan instan tanpa perlu melakukan scroll ke bawah sama sekali.
-- **Topics List**: Menggunakan perhitungan dinamis:
-  $$\text{topics\_h} = \text{main\_content\_h} - \text{header\_h} - \text{footer\_h}$$
-  Menggunakan `ImGuiWindowFlags_NoScrollbar` pada container induk sidebar, menjamin daftar obrolan dapat di-scroll vertikal secara mandiri dan **tidak akan pernah** mendorong tombol Pengaturan/Output ke luar layar.
-- **Hardware Telemetry Card & Footer**: Kartu real-time penggunaan RAM dengan micro-progress bar, status thread CPU AVX2, kartu grafis GPU, serta tombol `[⚙️ Pengaturan]` dan `[📁 Output]` yang selalu terpancang kokoh di bawah tanpa tertutup atau tergeser.
+- **Topics List**: Menggunakan perhitungan dinamis berbasis sisa ruang yang tersedia:
+  $$\text{topics\_h} = \text{avail\_h} - \text{sidebar\_footer\_h (168px)}$$
+  Container induk `SidebarPanel` dikunci mati dengan `ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse`, menjamin sidebar tidak pernah bisa digulung roda mouse ke atas/bawah. Hanya daftar percakapan di bagian tengah (`TopicsList`) yang menggulung secara mandiri saat sesi bertambah banyak.
+- **Hardware Telemetry Card & Footer**: Kartu real-time penggunaan RAM dengan micro-progress bar, status thread CPU AVX2, kartu grafis GPU, serta tombol `[⚙️ Pengaturan]` dan `[📁 Output]` yang selalu terpancang kokoh 100% di bawah tanpa pernah tergeser atau terpotong.
 
 ### B. Workspace Kanan (Studio Kreatif)
 - **Top Navbar**: 6 tab mode utama (`Home`, `Chat AI`, `Studio Foto`, `Dewasa 18+`, `Video AI`, `Suara AI`), dropdown model aktif yang otomatis menyesuaikan lebar, tombol `[+ Model]` untuk impor berkas model lokal, tombol `[⛶ Layar Penuh]`, serta tombol `[⚙️ Pengaturan]` yang selalu terpampang jelas di pojok kanan atas layar dengan akses 1-klik tanpa scroll.

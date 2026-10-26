@@ -155,6 +155,23 @@ Semua catatan perubahan, perbaikan bug, penambahan fitur, dan perombakan arsitek
 
 ---
 
+## [v1.6.0] - 2026-10-26
+### 💎 Penguncian Mutlak Scrollbar Sidebar Kiri & Estetika iOS Liquid Glassmorphism
+- **Penguncian Mutlak Scrollbar Sidebar Kiri (`NoScrollWithMouse` & Zero-Drift Dynamic Sizing)**:
+  - Mengeliminasi total bug di mana panel samping kiri masih dapat digulung ke atas/bawah menggunakan roda mouse. Kini diaktifkan flag proteksi ganda `ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse` pada container utama `SidebarPanel`, `BrandHeaderCard`, dan `SessionCard`.
+  - Mengganti estimasi tinggi statis dengan kalkulasi dinamis presisi `ImGui::GetContentRegionAvail().y - 168.0f`.
+  - Panel samping kiri kini **100% terkunci mati (Fixed Unscrollable Container)**. Hanya daftar percakapan di bagian tengah (`TopicsList`) yang dapat menggulung secara mandiri saat sesi bertambah banyak.
+- **Implementasi Estetika Visual iOS Liquid Glassmorphism (VisionOS / Apple Dribbble Style)**:
+  - **Pembiasan Cahaya Kaca (*Specular Top Rim Reflection*)**: Penambahan garis pantulan 1px di tepi atas kartu dan panel (*glass thickness highlight*).
+  - **Kelengkungan Kapsul Halus (*Fluid Pill Rounding*)**: Peningkatan kurvatur sudut (`WindowRounding = 14px`, `ChildRounding = 12px`, `BubbleRounding = 14px`, `ButtonRounding = 10px`).
+  - **Palet Kaca Tembus Pandang (*Frosted Glass Alpha*)**: Latar panel kaca tembus pandang (`rgba(17, 24, 41, 0.80)`) dengan border pembiasan cahaya specular di atas latar belakang deep cosmic navy (`#0A0D17`).
+  - **Gelembung Obrolan Kristal**:
+    - Balon pesan pengguna: Liquid Electric Azure Glass (`rgba(26, 107, 220, 0.88)` dengan border highlight cyan).
+    - Balon pesan AI: Frosted Deep Sapphire Glass (`rgba(19, 28, 47, 0.80)` dengan border pembiasan lembut).
+    - Balon pesan NSFW: Frosted Ruby Rose Glass (`rgba(61, 20, 41, 0.85)`).
+
+---
+
 ## [v1.5.3] - 2026-10-26
 ### 📐 Optimasi Sizing Presisi 1:1 & Eliminasi Scrollbar Liar (Perfect Fit, Zero Screen-Shift)
 - **Eliminasi Total Scrollbar Root Window (Zero Screen Jitter)**:
