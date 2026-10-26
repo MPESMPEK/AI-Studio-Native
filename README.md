@@ -4,7 +4,7 @@
 ![Language](https://img.shields.io/badge/Language-C%2B%2B17%20Native-00599C)
 ![DirectX](https://img.shields.io/badge/Renderer-Direct3D%2011%20(60%20FPS)-purple)
 ![AVX2](https://img.shields.io/badge/Acceleration-AVX2%20%2B%20FMA%20%2B%20OpenMP-orange)
-![Version](https://img.shields.io/badge/Version-v1.1.3-brightgreen)
+![Version](https://img.shields.io/badge/Version-v1.3.1-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 Aplikasi studio AI desktop generasi baru yang dibangun **100% murni menggunakan C++ native dan Direct3D 11**. Menggabungkan **Large Language Model (LLM)** dan **Diffusion Photo Generator** dalam satu biner mandiri berukuran **2.39 MB** tanpa runtime Python, PyTorch, Electron, maupun virtual environment.
