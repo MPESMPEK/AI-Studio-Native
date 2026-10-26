@@ -26,6 +26,7 @@
 #include "../imgui/imgui_impl_dx11.h"
 #include "../include/engine_core.h"
 #include "../include/memory_manager.h"
+#include "../imgui/imgui_internal.h"
 
 // Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -1716,13 +1717,219 @@ static void SetCardCover(int target_mode, const std::string& path) {
     }
 }
 
-// Render Dashboard Card Hub (Tata Letak Kartu Horizontal Modern Persis Uizard - Sesuai Pilihan)
+
+// Enum Kategori Warna Aksen Dashboard Card
+enum CardCategoryTheme {
+    CARD_THEME_CHAT = 0,   // Cyan   (Chat AI & Koding)
+    CARD_THEME_PHOTO,      // Green  (Studio Foto Diffusion)
+    CARD_THEME_ADULT,      // Red    (Dewasa 18+ Uncensored)
+    CARD_THEME_VOICE       // Purple (Suara Manusia & TTS)
+};
+
+/**
+ * @brief Menggambar kartu dashboard interaktif dengan border glowing dan badge spesifikasi.
+ */
+static bool DrawDashboardCard(
+    const char* card_id,
+    const char* title,
+    const char* active_model,
+    const char* description,
+    const char* action_text,
+    ID3D11ShaderResourceView* thumbnail_srv,
+    CardCategoryTheme theme,
+    const char* spec_badge_1,
+    const char* spec_badge_2,
+    int target_mode,
+    float card_w = 0.0f,
+    float card_h = 108.0f
+) {
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window->SkipItems) return false;
+
+    ImGuiContext& g = *GImGui;
+    const ImGuiStyle& style = g.Style;
+    ImDrawList* draw_list = window->DrawList;
+
+    if (card_w <= 0.0f) {
+        card_w = ImGui::GetContentRegionAvail().x;
+        if (card_w < 320.0f) card_w = 320.0f;
+    }
+
+    ImVec2 pos = window->DC.CursorPos;
+    ImVec2 size(card_w, card_h);
+    ImRect bb(pos, ImVec2(pos.x + size.x, pos.y + size.y));
+    ImGui::ItemSize(size, style.FramePadding.y);
+
+    const ImGuiID id = window->GetID(card_id);
+    if (!ImGui::ItemAdd(bb, id)) return false;
+
+    bool hovered = false;
+    bool held = false;
+    bool pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held);
+
+    if (hovered) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    }
+
+    ImVec4 accent_color;
+    const char* category_label = "MODE";
+
+    switch (theme) {
+        case CARD_THEME_CHAT:
+            accent_color = ImVec4(0.22f, 0.74f, 0.97f, 1.0f); // Cyan #38bdf8
+            category_label = "PERCAKAPAN & KODING";
+            break;
+        case CARD_THEME_PHOTO:
+            accent_color = ImVec4(0.06f, 0.72f, 0.50f, 1.0f); // Emerald #10b981
+            category_label = "STUDIO FOTOGRAFI";
+            break;
+        case CARD_THEME_ADULT:
+            accent_color = ImVec4(0.96f, 0.25f, 0.37f, 1.0f); // Rose #f43f5e
+            category_label = "DEWASA (18+ UNCENSORED)";
+            break;
+        case CARD_THEME_VOICE:
+        default:
+            accent_color = ImVec4(0.66f, 0.33f, 0.97f, 1.0f); // Violet #a855f7
+            category_label = "SUARA AI & AUDIO";
+            break;
+    }
+
+    ImU32 col_bg = hovered ? ImColor(26, 36, 54, 250) : ImColor(15, 23, 42, 240);
+    ImU32 col_border = hovered 
+        ? ImColor(accent_color.x, accent_color.y, accent_color.z, 0.90f)
+        : ImColor(45, 58, 78, 160);
+
+    const float round_r = 10.0f;
+
+    // Glowing Border Pass (2 Lapisan saat Hover)
+    if (hovered) {
+        draw_list->AddRect(
+            ImVec2(bb.Min.x - 2.0f, bb.Min.y - 2.0f),
+            ImVec2(bb.Max.x + 2.0f, bb.Max.y + 2.0f),
+            ImColor(accent_color.x, accent_color.y, accent_color.z, 0.16f),
+            round_r + 2.0f, 0, 3.0f
+        );
+        draw_list->AddRect(
+            ImVec2(bb.Min.x - 1.0f, bb.Min.y - 1.0f),
+            ImVec2(bb.Max.x + 1.0f, bb.Max.y + 1.0f),
+            ImColor(accent_color.x, accent_color.y, accent_color.z, 0.35f),
+            round_r + 1.0f, 0, 1.5f
+        );
+    }
+
+    draw_list->AddRectFilled(bb.Min, bb.Max, col_bg, round_r);
+    draw_list->AddRect(bb.Min, bb.Max, col_border, round_r, 0, hovered ? 1.5f : 1.0f);
+
+    // Garis Aksen Vertikal Kiri
+    draw_list->AddRectFilled(
+        ImVec2(bb.Min.x, bb.Min.y + 10.0f),
+        ImVec2(bb.Min.x + 4.0f, bb.Max.y - 10.0f),
+        ImColor(accent_color),
+        2.0f
+    );
+
+    // Thumbnail Kiri
+    const float thumb_size = 80.0f;
+    ImVec2 thumb_min(bb.Min.x + 14.0f, bb.Min.y + (card_h - thumb_size) * 0.5f);
+    ImVec2 thumb_max(thumb_min.x + thumb_size, thumb_min.y + thumb_size);
+
+    if (thumbnail_srv) {
+        draw_list->AddImageRounded(
+            (ImTextureID)thumbnail_srv,
+            thumb_min, thumb_max,
+            ImVec2(0, 0), ImVec2(1, 1),
+            IM_COL32_WHITE, 8.0f
+        );
+        draw_list->AddRect(thumb_min, thumb_max, ImColor(accent_color.x, accent_color.y, accent_color.z, 0.40f), 8.0f);
+    } else {
+        draw_list->AddRectFilled(thumb_min, thumb_max, ImColor(20, 29, 46, 255), 8.0f);
+        draw_list->AddRect(thumb_min, thumb_max, ImColor(accent_color.x * 0.5f, accent_color.y * 0.5f, accent_color.z * 0.5f, 0.6f), 8.0f);
+
+        ImVec2 center(thumb_min.x + thumb_size * 0.5f, thumb_min.y + thumb_size * 0.5f);
+        draw_list->AddCircleFilled(center, 14.0f, ImColor(accent_color.x, accent_color.y, accent_color.z, 0.25f));
+        draw_list->AddCircle(center, 14.0f, ImColor(accent_color), 0, 1.5f);
+
+        const char* hint_txt = "[+ Pilih]";
+        ImVec2 hint_sz = ImGui::CalcTextSize(hint_txt);
+        draw_list->AddText(ImVec2(center.x - hint_sz.x * 0.5f, center.y + 18.0f), ImColor(accent_color), hint_txt);
+    }
+
+    // Tombol Thumbnail Ganti Sampul
+    if (ImGui::IsMouseHoveringRect(thumb_min, thumb_max) && ImGui::IsMouseClicked(0)) {
+        std::string chosen = OpenImageFileDialog(g_hMainWnd);
+        if (!chosen.empty()) {
+            SetCardCover(target_mode, chosen);
+        }
+        return false; // Jangan navigasi mode saat hanya ingin ganti cover
+    }
+
+    // Badge / Pil Spesifikasi di Pojok Kanan Atas
+    float cur_badge_x = bb.Max.x - 14.0f;
+    const float badge_y = bb.Min.y + 12.0f;
+    const float badge_h = 20.0f;
+
+    auto DrawSpecPill = [&](const char* text, ImU32 text_col) {
+        if (!text || text[0] == 0) return;
+        ImVec2 txt_sz = ImGui::CalcTextSize(text);
+        float pill_w = txt_sz.x + 14.0f;
+        cur_badge_x -= pill_w;
+
+        ImVec2 pill_min(cur_badge_x, badge_y);
+        ImVec2 pill_max(cur_badge_x + pill_w, badge_y + badge_h);
+
+        draw_list->AddRectFilled(pill_min, pill_max, ImColor(30, 41, 59, 230), 10.0f);
+        draw_list->AddRect(pill_min, pill_max, ImColor(71, 85, 105, 180), 10.0f, 0, 1.0f);
+        draw_list->AddText(
+            ImVec2(pill_min.x + 7.0f, pill_min.y + (badge_h - txt_sz.y) * 0.5f),
+            text_col, text
+        );
+        cur_badge_x -= 8.0f;
+    };
+
+    if (spec_badge_2 && spec_badge_2[0] != 0) {
+        DrawSpecPill(spec_badge_2, ImColor(148, 163, 184));
+    }
+    if (spec_badge_1 && spec_badge_1[0] != 0) {
+        DrawSpecPill(spec_badge_1, ImColor(accent_color));
+    }
+
+    // Konten Teks Tengah
+    float content_x = thumb_max.x + 16.0f;
+    draw_list->AddText(ImVec2(content_x, bb.Min.y + 12.0f), ImColor(accent_color), category_label);
+    draw_list->AddText(ImVec2(content_x, bb.Min.y + 28.0f), ImColor(241, 245, 249), title);
+    draw_list->AddText(ImVec2(content_x, bb.Min.y + 49.0f), ImColor(148, 163, 184), active_model);
+    draw_list->AddText(ImVec2(content_x, bb.Min.y + 68.0f), ImColor(100, 116, 139), description);
+
+    // Tombol Aksi Kanan Bawah
+    ImVec2 act_sz = ImGui::CalcTextSize(action_text);
+    float btn_w = act_sz.x + 22.0f;
+    float btn_h = 28.0f;
+    ImVec2 btn_min(bb.Max.x - btn_w - 14.0f, bb.Max.y - btn_h - 12.0f);
+    ImVec2 btn_max(bb.Max.x - 14.0f, bb.Max.y - 12.0f);
+
+    ImU32 col_btn_bg = hovered
+        ? ImColor(accent_color.x, accent_color.y, accent_color.z, 0.28f)
+        : ImColor(30, 41, 59, 180);
+    ImU32 col_btn_border = hovered ? ImColor(accent_color) : ImColor(51, 65, 85, 180);
+
+    draw_list->AddRectFilled(btn_min, btn_max, col_btn_bg, 6.0f);
+    draw_list->AddRect(btn_min, btn_max, col_btn_border, 6.0f, 0, 1.0f);
+    draw_list->AddText(
+        ImVec2(btn_min.x + 11.0f, btn_min.y + (btn_h - act_sz.y) * 0.5f),
+        hovered ? ImColor(255, 255, 255) : ImColor(accent_color),
+        action_text
+    );
+
+    return pressed;
+}
+
+// Render Dashboard Card Hub (Modern Direct3D 11 Vector Cards)
 static void RenderDashboardHub(float panel_w, float panel_h) {
     ImGui::BeginChild("DashboardHub", ImVec2(panel_w, panel_h), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
     ImGui::Dummy(ImVec2(0, 6));
 
-    // Header Title (Persis seperti "Courses" di Uizard)
+    // Header Title
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16, 10));
     ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 1.0f), "KATALOG STUDIO & MODE AI");
     ImGui::TextDisabled("Pilih mode di bawah untuk langsung membuka studio. Pure C++ Native Engine (100%% Offline).");
@@ -1733,185 +1940,88 @@ static void RenderDashboardHub(float panel_w, float panel_h) {
     ImGui::Spacing();
 
     float card_w = panel_w - 24.0f;
-    float card_h = 104.0f;
-    float thumb_sz = 80.0f;
-    float btn_w = 120.0f;
-
-    auto render_uizard_card = [&](const char* id, ID3D11ShaderResourceView* tex, const char* placeholder_icon, const char* category, const char* title, const char* subtitle, float progress_val, const char* progress_lbl, const char* btn_text, int target_mode, ImVec4 accent_col, ImVec4 bg_col, ImVec4 border_col) {
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, bg_col);
-        ImGui::PushStyleColor(ImGuiCol_Border,  border_col);
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12, 12));
-
-        ImGui::BeginChild(id, ImVec2(card_w, card_h), true, ImGuiWindowFlags_NoScrollbar);
-
-        // 1. Kolom Kiri: Thumbnail Foto (Sesuai Pilihan Pengguna atau Icon Elegan)
-        ImGui::PushID(id);
-        if (tex) {
-            ImGui::Image((void*)tex, ImVec2(thumb_sz, thumb_sz));
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Klik untuk mengganti gambar sampul pilihan Anda");
-            }
-            if (ImGui::IsItemClicked()) {
-                std::string chosen = OpenImageFileDialog(g_hMainWnd);
-                if (!chosen.empty()) {
-                    SetCardCover(target_mode, chosen);
-                }
-            }
-        } else {
-            ImDrawList* dl = ImGui::GetWindowDrawList();
-            ImVec2 p0 = ImGui::GetCursorScreenPos();
-            ImVec2 p1 = ImVec2(p0.x + thumb_sz, p0.y + thumb_sz);
-            
-            dl->AddRectFilled(p0, p1, ImColor(accent_col.x * 0.35f, accent_col.y * 0.35f, accent_col.z * 0.35f, 0.85f), 10.0f);
-            dl->AddRect(p0, p1, ImColor(accent_col), 10.0f, 0, 1.5f);
-
-            ImVec2 icon_sz = ImGui::CalcTextSize(placeholder_icon);
-            ImVec2 icon_pos = ImVec2(p0.x + (thumb_sz - icon_sz.x) * 0.5f, p0.y + 22.0f);
-            dl->AddText(icon_pos, ImColor(1.0f, 1.0f, 1.0f, 1.0f), placeholder_icon);
-
-            const char* hint_txt = "[+ Pilih]";
-            ImVec2 hint_sz = ImGui::CalcTextSize(hint_txt);
-            ImVec2 hint_pos = ImVec2(p0.x + (thumb_sz - hint_sz.x) * 0.5f, p0.y + 46.0f);
-            dl->AddText(hint_pos, ImColor(accent_col), hint_txt);
-
-            if (ImGui::InvisibleButton("##ThumbBtn", ImVec2(thumb_sz, thumb_sz))) {
-                std::string chosen = OpenImageFileDialog(g_hMainWnd);
-                if (!chosen.empty()) {
-                    SetCardCover(target_mode, chosen);
-                }
-            }
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Klik untuk memilih gambar sampul dari laptop Anda");
-            }
-        }
-        ImGui::PopID();
-
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10.0f);
-
-        // 2. Kolom Tengah: Info Teks & Progress Bar
-        float middle_w = card_w - thumb_sz - btn_w - 48.0f;
-        if (middle_w < 150.0f) middle_w = 150.0f;
-
-        ImGui::BeginGroup();
-        // Category Tag
-        ImGui::TextColored(accent_col, "[ %s ]", category);
-        
-        // Title (Bold & Jelas)
-        ImGui::TextColored(ImVec4(0.96f, 0.98f, 1.0f, 1.0f), "%s", title);
-        
-        // Subtitle / Model Aktif Sesuai Pilihan Pengguna
-        ImGui::TextDisabled("%s", subtitle);
-
-        // Progress Bar (Sama persis seperti progress bar Uizard)
-        float pbar_w = (middle_w > 260.0f) ? 170.0f : 110.0f;
-        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, accent_col);
-        ImGui::ProgressBar(progress_val, ImVec2(pbar_w, 5), "");
-        ImGui::PopStyleColor();
-
-        ImGui::SameLine();
-        ImGui::TextDisabled("%s", progress_lbl);
-        ImGui::EndGroup();
-
-        // 3. Kolom Kanan: Action Button (Buka Studio)
-        ImGui::SameLine(card_w - btn_w - 12.0f);
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 23.0f);
-
-        ImGui::PushStyleColor(ImGuiCol_Button, accent_col);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(accent_col.x * 1.15f, accent_col.y * 1.15f, accent_col.z * 1.15f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-        if (ImGui::Button(btn_text, ImVec2(btn_w, 34))) {
-            g_selected_mode = target_mode;
-        }
-        ImGui::PopStyleColor(3);
-
-        ImGui::EndChild();
-        ImGui::PopStyleVar(2);
-        ImGui::PopStyleColor(2);
-    };
 
     // Model Teks Aktif
-    std::string active_llm = (!g_llm_items.empty() && g_selected_llm < (int)g_llm_items.size()) ? g_llm_items[g_selected_llm] : "DeepSeek-R1 Distill Qwen";
+    std::string active_llm = (!g_llm_items.empty() && g_selected_llm < (int)g_llm_items.size()) ? g_llm_items[g_selected_llm] : "Qwen2.5-Coder 1.5B Instruct";
     std::string chat_sub = active_llm + " - Penalaran Logika & Dokumen";
 
     // Model Foto Aktif
     std::string active_photo = (!g_photo_items.empty() && g_selected_photo < (int)g_photo_items.size()) ? g_photo_items[g_selected_photo] : "CyberRealistic V5.0";
     std::string photo_sub = active_photo + " - Potret Manusia DSLR 85mm";
 
-    // Kartu 1: Percakapan Bebas & Koding
-    render_uizard_card(
+    // Kartu 1: Percakapan Bebas & Koding (Cyan)
+    if (DrawDashboardCard(
         "Card_Chat",
-        g_hub_custom_tex_chat,
-        "AI CHAT",
-        "TEKS & LOGIKA LLM",
         "Percakapan Bebas & Koding",
         chat_sub.c_str(),
-        1.00f,
-        "Status: Siap (Offline) - 100% C++ Engine",
+        "Asisten koding responsif, bedah bug algoritma C++, dan tanya jawab dokumen.",
         "Buka Chat ->",
+        g_hub_custom_tex_chat,
+        CARD_THEME_CHAT,
+        "Q4_K_M",
+        "RAM: ~1.2 GB",
         1,
-        ImVec4(0.18f, 0.52f, 0.92f, 0.95f),
-        ImVec4(0.09f, 0.14f, 0.22f, 0.85f),
-        ImVec4(0.20f, 0.40f, 0.70f, 0.70f)
-    );
+        card_w
+    )) {
+        g_selected_mode = 1;
+    }
 
     ImGui::Spacing();
 
-    // Kartu 2: Generator Foto Realistis (Sesuai Pilihan Model & Gambar)
-    render_uizard_card(
+    // Kartu 2: Generator Foto Realistis (Green)
+    if (DrawDashboardCard(
         "Card_Photo",
-        g_hub_custom_tex_photo,
-        "FOTO",
-        "FOTOGRAFI REALISTIS",
         "Generator Foto Realistis",
         photo_sub.c_str(),
-        0.95f,
-        "Status: Siap - Resolusi 512x768 - LoRA+VAE",
+        "Generasi potret fotorealistis DSLR 85mm dengan tekstur kulit mikro berpori.",
         "Buka Studio ->",
+        g_hub_custom_tex_photo,
+        CARD_THEME_PHOTO,
+        "FP16",
+        "Steps: 20-25",
         2,
-        ImVec4(0.12f, 0.65f, 0.50f, 0.95f),
-        ImVec4(0.08f, 0.16f, 0.15f, 0.85f),
-        ImVec4(0.18f, 0.55f, 0.45f, 0.70f)
-    );
+        card_w
+    )) {
+        g_selected_mode = 2;
+    }
 
     ImGui::Spacing();
 
-    // Kartu 3: Studio Dewasa & NSFW (Sesuai Pilihan Gambar)
-    render_uizard_card(
+    // Kartu 3: Studio Dewasa & Sensual (Red)
+    if (DrawDashboardCard(
         "Card_NSFW",
+        "Studio Dewasa & Sensual (18+)",
+        "CyberRealistic V5.0 + Qwen Uncensored",
+        "Generasi potret dan cerita bebas tanpa sensor langsung di CPU/GPU laptop.",
+        "Buka 18+ ->",
         g_hub_custom_tex_nsfw,
-        "18+ NSFW",
-        "100% BEBAS SENSOR",
-        "Studio Dewasa & Sensual",
-        "Fine Art Nude & Sensual - Kunci Pose ControlNet Canny",
-        0.90f,
-        "Status: Siap - 100% Bebas Sensor Moral",
-        "Buka Dewasa ->",
+        CARD_THEME_ADULT,
+        "Uncensored",
+        "100% Offline",
         3,
-        ImVec4(0.85f, 0.15f, 0.38f, 0.95f),
-        ImVec4(0.18f, 0.08f, 0.12f, 0.85f),
-        ImVec4(0.65f, 0.18f, 0.32f, 0.70f)
-    );
+        card_w
+    )) {
+        g_selected_mode = 3;
+    }
 
     ImGui::Spacing();
 
-    // Kartu 4: Asisten Suara AI
-    render_uizard_card(
+    // Kartu 4: Asisten Suara AI (Purple)
+    if (DrawDashboardCard(
         "Card_Voice",
-        g_hub_custom_tex_voice,
-        "VOICE",
-        "VOICE ASSISTANT",
         "Asisten Suara AI",
-        "Dikte Suara Bahasa Indonesia & Speech Engine C++",
-        0.80f,
-        "Status: Mikrofon Aktif - Audio C++ Engine",
+        "Indonesian Natural Voice (Gadis & Ardi)",
+        "Dikte suara dan sintesis pembaca teks bahasa Indonesia ramah & sopan.",
         "Buka Suara ->",
+        g_hub_custom_tex_voice,
+        CARD_THEME_VOICE,
+        "SAPI / Piper",
+        "Latensi 0ms",
         5,
-        ImVec4(0.55f, 0.25f, 0.85f, 0.95f),
-        ImVec4(0.14f, 0.09f, 0.20f, 0.85f),
-        ImVec4(0.45f, 0.22f, 0.68f, 0.70f)
-    );
+        card_w
+    )) {
+        g_selected_mode = 5;
+    }
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -1925,7 +2035,8 @@ static void RenderDashboardHub(float panel_w, float panel_h) {
     ImGui::EndChild(); // DashboardHub
 }
 
-// Render WhatsApp-Style Chat Bubble (Kanan: User, Kiri: AI)
+
+// Render WhatsApp-Style Chat Bubble
 void RenderWhatsAppBubble(const ChatMsg& msg, float chat_w, int idx) {
     bool is_user = (msg.role == "User");
     float max_bubble_w = chat_w * 0.75f;
