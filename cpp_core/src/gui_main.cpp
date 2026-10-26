@@ -2061,8 +2061,8 @@ static void DrawGlowingBezier(ImDrawList* draw_list, ImVec2 p1, ImVec2 p2, ImU32
 // =========================================================================
 
 // State Kanvas & Skala Zoom Fluid Ultra-Smooth
-static float s_canvas_zoom = 0.85f;
-static float s_target_zoom = 0.85f;
+static float s_canvas_zoom = 0.90f;
+static float s_target_zoom = 0.90f;
 static ImVec2 s_canvas_pan = ImVec2(0.0f, 0.0f);
 static ImVec2 s_pan_velocity = ImVec2(0.0f, 0.0f);
 static float g_touchpad_pinch_factor = 1.0f;
@@ -2120,8 +2120,8 @@ static void InitDefaultStudioNodes() {
     n0.id = s_next_node_id++;
     n0.type = NODE_TYPE_MODEL;
     n0.title = "[MODEL] Checkpoint Loader";
-    n0.pos = ImVec2(20.0f, 20.0f);
-    n0.base_size = ImVec2(270.0f, 170.0f);
+    n0.pos = ImVec2(30.0f, 30.0f);
+    n0.base_size = ImVec2(280.0f, 175.0f);
     n0.is_active = true;
     n0.model_idx = g_selected_photo;
     s_studio_nodes.push_back(n0);
@@ -2131,8 +2131,8 @@ static void InitDefaultStudioNodes() {
     n1.id = s_next_node_id++;
     n1.type = NODE_TYPE_LORA;
     n1.title = "[LoRA] Adaptor & Bobot";
-    n1.pos = ImVec2(20.0f, 215.0f);
-    n1.base_size = ImVec2(270.0f, 175.0f);
+    n1.pos = ImVec2(30.0f, 245.0f);
+    n1.base_size = ImVec2(280.0f, 180.0f);
     n1.is_active = true;
     n1.lora_idx = (g_detected_loras.size() > 1) ? 1 : 0;
     n1.lora_strength = 0.75f;
@@ -2143,8 +2143,8 @@ static void InitDefaultStudioNodes() {
     n2.id = s_next_node_id++;
     n2.type = NODE_TYPE_PROMPT;
     n2.title = "[PROMPT] Positif & Negatif";
-    n2.pos = ImVec2(310.0f, 20.0f);
-    n2.base_size = ImVec2(360.0f, 240.0f);
+    n2.pos = ImVec2(370.0f, 30.0f);
+    n2.base_size = ImVec2(360.0f, 250.0f);
     n2.is_active = true;
     strcpy(n2.prompt, "Close-up portrait of a gorgeous Indonesian woman smiling outdoors in nature, golden hour warm lighting, natural skin pores, Canon EOS R5 85mm f/1.4, 8k uhd photorealistic");
     strcpy(n2.neg_prompt, "blurry, bad anatomy, bad hands, deformed, disfigured, lowres, watermark, extra limbs");
@@ -2155,8 +2155,8 @@ static void InitDefaultStudioNodes() {
     n3.id = s_next_node_id++;
     n3.type = NODE_TYPE_CONTROLNET;
     n3.title = "[CONTROL] ControlNet Canny";
-    n3.pos = ImVec2(20.0f, 415.0f);
-    n3.base_size = ImVec2(270.0f, 195.0f);
+    n3.pos = ImVec2(30.0f, 465.0f);
+    n3.base_size = ImVec2(280.0f, 200.0f);
     n3.is_active = true;
     n3.cnet_enabled = false;
     n3.cnet_img_path[0] = 0;
@@ -2169,8 +2169,8 @@ static void InitDefaultStudioNodes() {
     n4.id = s_next_node_id++;
     n4.type = NODE_TYPE_SAMPLER;
     n4.title = "[SAMPLER] K-Sampler Engine";
-    n4.pos = ImVec2(310.0f, 280.0f);
-    n4.base_size = ImVec2(360.0f, 315.0f);
+    n4.pos = ImVec2(370.0f, 320.0f);
+    n4.base_size = ImVec2(360.0f, 325.0f);
     n4.is_active = true;
     n4.steps = 20;
     n4.cfg = 7.0f;
@@ -2185,8 +2185,8 @@ static void InitDefaultStudioNodes() {
     n5.id = s_next_node_id++;
     n5.type = NODE_TYPE_VAE;
     n5.title = "[VAE] Decoder Engine";
-    n5.pos = ImVec2(690.0f, 20.0f);
-    n5.base_size = ImVec2(270.0f, 165.0f);
+    n5.pos = ImVec2(790.0f, 30.0f);
+    n5.base_size = ImVec2(280.0f, 170.0f);
     n5.is_active = true;
     n5.vae_idx = g_selected_vae_idx;
     s_studio_nodes.push_back(n5);
@@ -2196,7 +2196,7 @@ static void InitDefaultStudioNodes() {
     n6.id = s_next_node_id++;
     n6.type = NODE_TYPE_PREVIEW;
     n6.title = "[PREVIEW] Hasil Render Gambar";
-    n6.pos = ImVec2(690.0f, 205.0f);
+    n6.pos = ImVec2(790.0f, 240.0f);
     n6.base_size = ImVec2(340.0f, 430.0f);
     n6.is_active = true;
     s_studio_nodes.push_back(n6);
@@ -2513,9 +2513,9 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
         ImGui::Text("Zoom:");
         ImGui::SameLine();
         if (ImGui::Button("-##ZoomOut", ImVec2(24, 26))) {
-            s_target_zoom = std::max(0.55f, s_target_zoom - 0.12f);
+            s_target_zoom = std::max(0.75f, s_target_zoom - 0.08f);
         }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Perkecil Tampilan Zoom Out (-12%%)");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Perkecil Tampilan Zoom Out (-8%%)");
         ImGui::SameLine();
 
         char zbuf[32];
@@ -2527,14 +2527,14 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
         ImGui::SameLine();
 
         if (ImGui::Button("+##ZoomIn", ImVec2(24, 26))) {
-            s_target_zoom = std::min(1.50f, s_target_zoom + 0.12f);
+            s_target_zoom = std::min(1.20f, s_target_zoom + 0.08f);
         }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Perbesar Tampilan Zoom In (+12%%)");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Perbesar Tampilan Zoom In (+8%%)");
         ImGui::SameLine();
 
         if (ImGui::Button("Pas Layar", ImVec2(75, 26))) {
-            s_target_zoom = 0.85f;
-            s_canvas_pan = ImVec2(20.0f, 20.0f);
+            s_target_zoom = 0.90f;
+            s_canvas_pan = ImVec2(10.0f, 10.0f);
             s_pan_velocity = ImVec2(0.0f, 0.0f);
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Tampilan Pas: Seluruh alur node terlihat lega, nyaman, dan seimbang");
@@ -2576,13 +2576,13 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
     if (mouse_in_canvas && io.MouseWheel != 0.0f) {
         float zoom_delta = io.KeyCtrl ? (io.MouseWheel * 0.06f) : (io.MouseWheel * 0.10f);
         s_target_zoom += zoom_delta;
-        if (s_target_zoom < 0.55f) s_target_zoom = 0.55f;
-        if (s_target_zoom > 1.50f) s_target_zoom = 1.50f;
+        if (s_target_zoom < 0.75f) s_target_zoom = 0.75f;
+        if (s_target_zoom > 1.20f) s_target_zoom = 1.20f;
     }
     if (fabsf(g_touchpad_pinch_factor - 1.0f) > 0.001f) {
         s_target_zoom *= g_touchpad_pinch_factor;
-        if (s_target_zoom < 0.55f) s_target_zoom = 0.55f;
-        if (s_target_zoom > 1.50f) s_target_zoom = 1.50f;
+        if (s_target_zoom < 0.75f) s_target_zoom = 0.75f;
+        if (s_target_zoom > 1.20f) s_target_zoom = 1.20f;
         g_touchpad_pinch_factor = 1.0f;
     }
 
@@ -2828,7 +2828,8 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f * s_canvas_zoom, 8.0f * s_canvas_zoom));
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  ImVec2(6.0f * s_canvas_zoom, 3.0f * s_canvas_zoom));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   ImVec2(6.0f * s_canvas_zoom, 4.0f * s_canvas_zoom));
-        ImGui::SetWindowFontScale(s_canvas_zoom);
+        // Skala font di dalam kotak node dikunci selalu 1.0f (tetap tajam, jelas, dan tidak terdistorsi zoom)
+        ImGui::SetWindowFontScale(1.0f);
 
         char child_id[64];
         snprintf(child_id, sizeof(child_id), "NodeBox_%d", node.id);
