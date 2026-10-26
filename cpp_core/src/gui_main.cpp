@@ -1581,37 +1581,47 @@ static void DeleteSession(int idx) {
 void ApplyModernDarkTheme() {
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding    = 10.0f;
+    style.ChildRounding     = 8.0f;
     style.FrameRounding     = 6.0f;
     style.PopupRounding     = 8.0f;
     style.ScrollbarRounding = 8.0f;
     style.GrabRounding      = 6.0f;
     style.TabRounding       = 6.0f;
-    style.FramePadding      = ImVec2(12, 8); // Touch-friendly padding
-    style.ItemSpacing       = ImVec2(10, 10);
-    style.TouchExtraPadding = ImVec2(6, 6);  // Touchscreen Friendly!
+    style.FramePadding      = ImVec2(10, 6);
+    style.ItemSpacing       = ImVec2(8, 6);
+    style.ItemInnerSpacing  = ImVec2(6, 4);
+    style.TouchExtraPadding = ImVec2(0, 0);  // 0 Padding tambahan agar perhitungan grid presisi 100% anti-tabrak!
+    style.WindowPadding     = ImVec2(12, 10);
+    style.WindowBorderSize  = 0.0f;
+    style.ChildBorderSize   = 1.0f;
+    style.FrameBorderSize   = 1.0f;
 
     ImVec4* colors = style.Colors;
-    colors[ImGuiCol_WindowBg]             = ImVec4(0.043f, 0.059f, 0.098f, 1.00f); // #0b0f19
-    colors[ImGuiCol_ChildBg]              = ImVec4(0.059f, 0.090f, 0.165f, 1.00f); // #0f172a
-    colors[ImGuiCol_PopupBg]              = ImVec4(0.075f, 0.114f, 0.180f, 1.00f); // #131d2e
-    colors[ImGuiCol_Border]               = ImVec4(0.200f, 0.255f, 0.333f, 0.50f); // #334155
-    colors[ImGuiCol_FrameBg]              = ImVec4(0.118f, 0.161f, 0.231f, 1.00f); // #1e293b
-    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.200f, 0.255f, 0.333f, 1.00f);
-    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.145f, 0.388f, 0.922f, 0.60f);
-    colors[ImGuiCol_TitleBg]              = ImVec4(0.059f, 0.090f, 0.165f, 1.00f);
-    colors[ImGuiCol_TitleBgActive]        = ImVec4(0.145f, 0.388f, 0.922f, 0.90f);
-    colors[ImGuiCol_Button]               = ImVec4(0.145f, 0.388f, 0.922f, 1.00f); // #2563eb
-    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.114f, 0.306f, 0.847f, 1.00f); // #1d4ed8
-    colors[ImGuiCol_ButtonActive]         = ImVec4(0.090f, 0.251f, 0.690f, 1.00f);
-    colors[ImGuiCol_Header]               = ImVec4(0.118f, 0.161f, 0.231f, 1.00f);
-    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.145f, 0.388f, 0.922f, 0.80f);
-    colors[ImGuiCol_HeaderActive]         = ImVec4(0.145f, 0.388f, 0.922f, 1.00f);
-    colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.043f, 0.059f, 0.098f, 0.60f);
-    colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.200f, 0.255f, 0.333f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.145f, 0.388f, 0.922f, 0.80f);
-    colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.145f, 0.388f, 0.922f, 1.00f);
-    colors[ImGuiCol_CheckMark]            = ImVec4(0.220f, 0.741f, 0.973f, 1.00f); // #38bdf8
-    colors[ImGuiCol_Text]                 = ImVec4(0.941f, 0.961f, 0.980f, 1.00f); // #f1f5f9
+    colors[ImGuiCol_WindowBg]             = ImVec4(0.035f, 0.050f, 0.080f, 1.00f); // #090D14
+    colors[ImGuiCol_ChildBg]              = ImVec4(0.055f, 0.080f, 0.130f, 0.95f); // #0E1421
+    colors[ImGuiCol_PopupBg]              = ImVec4(0.070f, 0.100f, 0.160f, 0.98f); // #121A29
+    colors[ImGuiCol_Border]               = ImVec4(0.140f, 0.190f, 0.280f, 0.70f); // #243047
+    colors[ImGuiCol_BorderShadow]         = ImVec4(0.000f, 0.000f, 0.000f, 0.00f);
+    colors[ImGuiCol_FrameBg]              = ImVec4(0.080f, 0.120f, 0.190f, 1.00f); // #141F30
+    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.120f, 0.180f, 0.280f, 1.00f);
+    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.150f, 0.240f, 0.380f, 1.00f);
+    colors[ImGuiCol_TitleBg]              = ImVec4(0.055f, 0.080f, 0.130f, 1.00f);
+    colors[ImGuiCol_TitleBgActive]        = ImVec4(0.070f, 0.110f, 0.180f, 1.00f);
+    colors[ImGuiCol_Button]               = ImVec4(0.130f, 0.350f, 0.750f, 0.90f); // Modern Electric Blue
+    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.180f, 0.450f, 0.900f, 1.00f);
+    colors[ImGuiCol_ButtonActive]         = ImVec4(0.100f, 0.280f, 0.650f, 1.00f);
+    colors[ImGuiCol_Header]               = ImVec4(0.100f, 0.150f, 0.240f, 1.00f);
+    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.160f, 0.240f, 0.380f, 1.00f);
+    colors[ImGuiCol_HeaderActive]         = ImVec4(0.130f, 0.350f, 0.750f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.035f, 0.050f, 0.080f, 0.50f);
+    colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.160f, 0.220f, 0.320f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.240f, 0.340f, 0.500f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.200f, 0.500f, 0.950f, 1.00f);
+    colors[ImGuiCol_CheckMark]            = ImVec4(0.250f, 0.750f, 1.000f, 1.00f); // #40C0FF
+    colors[ImGuiCol_SliderGrab]           = ImVec4(0.250f, 0.750f, 1.000f, 1.00f);
+    colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.350f, 0.850f, 1.000f, 1.00f);
+    colors[ImGuiCol_Text]                 = ImVec4(0.940f, 0.960f, 0.980f, 1.00f);
+    colors[ImGuiCol_TextDisabled]         = ImVec4(0.500f, 0.580f, 0.680f, 1.00f);
 }
 
 // ================= BADGE BANTUAN INTERAKTIF (?) [JIKA AKTIF vs NON-AKTIF] =================
@@ -2588,11 +2598,21 @@ int WINAPI WinMain
         // ================= 1. SIDEBAR KIRI (FULL HEIGHT DENGAN BATAS STATUS BAR) =================
         ImGui::BeginChild("SidebarPanel", ImVec2(sidebar_width, main_content_h), true);
 
-        // Logo & Brand Header
-        ImGui::TextColored(ImVec4(0.22f, 0.74f, 0.97f, 1.0f), "AI STUDIO");
+        // Logo & Brand Header Card
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.040f, 0.060f, 0.095f, 0.95f));
+        ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.120f, 0.170f, 0.260f, 0.80f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 7.0f));
+        ImGui::BeginChild("BrandHeaderCard", ImVec2(-1, 54), true, ImGuiWindowFlags_NoScrollbar);
+        
+        ImGui::TextColored(ImVec4(0.25f, 0.75f, 1.0f, 1.0f), "⚡ AI STUDIO");
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(0.50f, 0.80f, 0.95f, 0.9f), "C++");
-        ImGui::TextDisabled("100%% Pure Native * Direct3D 11");
+        ImGui::TextColored(ImVec4(0.15f, 0.85f, 0.55f, 1.0f), "NATIVE");
+        ImGui::TextColored(ImVec4(0.40f, 0.85f, 0.60f, 1.0f), "🟢 100%% C++ Direct3D 11");
+
+        ImGui::EndChild();
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor(2);
         ImGui::Spacing();
 
         // Tombol Percakapan Baru
@@ -3014,9 +3034,9 @@ int WINAPI WinMain
             float input_card_h = 0.0f;
             if (g_has_init_image) input_card_h += 76.0f;
             if (g_has_attached_doc) input_card_h += 48.0f;
-            bool two_rows_options = (right_panel_width < 680.0f);
-            float options_bar_h = (g_selected_mode == 2 || g_selected_mode == 3) ? (two_rows_options ? 56.0f : 28.0f) : 26.0f;
-            float input_area_h = 50.0f + options_bar_h + input_card_h + 8.0f;
+            bool two_rows_options = (right_panel_width < 720.0f);
+            float options_bar_h = (g_selected_mode == 2 || g_selected_mode == 3) ? (two_rows_options ? 62.0f : 34.0f) : 34.0f;
+            float input_area_h = 52.0f + options_bar_h + input_card_h + 8.0f;
             float chat_canvas_h = main_content_h - 40.0f - subbar_h - input_area_h - 8.0f;
             if (chat_canvas_h < 100.0f) chat_canvas_h = 100.0f;
 
@@ -3454,12 +3474,19 @@ int WINAPI WinMain
             }
         }
 
-        // ------------------ OPSI KONTEKSTUAL BAWAH ------------------
+        // ------------------ OPSI KONTEKSTUAL BAWAH (ENCAPSULATED RIBBON) ------------------
         if (g_selected_mode == 2 || g_selected_mode == 3) {
             // MODE DIFUSI FOTO / NSFW (Responsif & Anti-Overlap)
-            bool two_rows = (right_panel_width < 680.0f);
+            bool two_rows = (right_panel_width < 720.0f);
+            float ribbon_h = two_rows ? 58.0f : 32.0f;
 
-            ImGui::SetNextItemWidth(two_rows ? 120.0f : 125.0f);
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.045f, 0.070f, 0.115f, 0.95f));
+            ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.140f, 0.190f, 0.280f, 0.85f));
+            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 5.0f));
+            ImGui::BeginChild("PhotoOptionsRibbon", ImVec2(right_panel_width - 4.0f, ribbon_h), true, ImGuiWindowFlags_NoScrollbar);
+
+            ImGui::SetNextItemWidth(two_rows ? 115.0f : 120.0f);
             ImGui::Combo("##PromptAssistMode", &g_prompt_assist_mode, g_prompt_assist_names, IM_ARRAYSIZE(g_prompt_assist_names));
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip(
@@ -3471,18 +3498,18 @@ int WINAPI WinMain
             }
 
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(two_rows ? 95.0f : 95.0f);
+            ImGui::SetNextItemWidth(two_rows ? 90.0f : 95.0f);
             ImGui::Combo("##FramingSelector", &g_framing_idx, g_framing_names, IM_ARRAYSIZE(g_framing_names));
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Sudut Pandang Kamera: Auto, Wajah, 1/2 Badan, Full Body");
 
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(two_rows ? 90.0f : 90.0f);
+            ImGui::SetNextItemWidth(two_rows ? 88.0f : 90.0f);
             ImGui::Combo("##ResolutionSelector", &g_resolution_idx, g_resolutions, IM_ARRAYSIZE(g_resolutions));
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rasio Foto: 512x512 (Kotak), 512x768 (Vertikal), 768x512 (Lanskap)");
 
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(two_rows ? 85.0f : 85.0f);
-            ImGui::SliderInt("##StepsSlider", &g_image_steps, 1, 50, "%d Steps");
+            ImGui::SetNextItemWidth(two_rows ? 82.0f : 85.0f);
+            ImGui::SliderInt("##StepsSlider", &g_image_steps, 1, 50, "%d Stp");
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Langkah Sampling (1 - 50 Steps): 4=Kilat LCM, 20=DSLR Seimbang, 30-50=Ultra Mulus");
 
             if (two_rows) {
@@ -3507,10 +3534,20 @@ int WINAPI WinMain
 
             ImGui::SameLine();
             ImGui::TextDisabled("| Enter: Generate");
+
+            ImGui::EndChild(); // PhotoOptionsRibbon
+            ImGui::PopStyleVar(2);
+            ImGui::PopStyleColor(2);
         } else {
             // MODE TEKS (CHAT / AUTO / VIDEO / SUARA)
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.045f, 0.070f, 0.115f, 0.95f));
+            ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.140f, 0.190f, 0.280f, 0.85f));
+            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 5.0f));
+            ImGui::BeginChild("TextOptionsRibbon", ImVec2(right_panel_width - 4.0f, 32.0f), true, ImGuiWindowFlags_NoScrollbar);
+
             if (!g_has_attached_doc) {
-                if (ImGui::Button("📄 Lampirkan File", ImVec2(130, 24))) {
+                if (ImGui::Button("📄 Lampirkan File", ImVec2(125, 22))) {
                     std::string chosen = OpenDocumentFileDialog(g_hMainWnd);
                     if (!chosen.empty()) {
                         AttachDocument(chosen.c_str());
@@ -3540,6 +3577,10 @@ int WINAPI WinMain
             ImGui::TextDisabled("|");
             ImGui::SameLine();
             ImGui::TextDisabled("💡 Shift+Enter: baris baru • Enter: kirim");
+
+            ImGui::EndChild(); // TextOptionsRibbon
+            ImGui::PopStyleVar(2);
+            ImGui::PopStyleColor(2);
         }
 
         ImGui::EndChild(); // BottomInput

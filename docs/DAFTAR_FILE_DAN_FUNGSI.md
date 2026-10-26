@@ -33,6 +33,9 @@ Semua bobot model AI dan hasil output gambar/video/audio:
 | ├── `LoRA/` | 🟢 | LoRA akselerasi LCM dan sudut kamera Qwen2.1. |
 | ├── `VAE/` | 🟢 | VAE decoder bfloat16 untuk decoding gambar beresolusi tinggi. |
 | └── `Audio_Suara/` | 🟢 | Model sintesis suara bahasa Indonesia (Piper TTS ONNX). |
+| **`docs/`** | 🟢 **DOKUMENTASI** | Dokumentasi arsitektur, panduan, dan spesifikasi teknis: |
+| ├── `UI_UX_DESIGN_SYSTEM.md` | 🟢 | **Sistem Desain UI/UX All-New**: Standar resmi grid anti-tabrak (*zero-collision*), token warna Cyber Studio, adaptive options ribbon, dan spesifikasi visual. |
+| └── `DAFTAR_FILE_DAN_FUNGSI.md`| 🟢 | Panduan struktur berkas lengkap proyek AI Studio. |
 | **`outputs/`** | 🟢 **KEPAKAI** | Seluruh hasil ekspor rapi: |
 | ├── `foto/` | 🟢 | Subfolder otomatis tiap model: `realistic_vision/`, `dreamshaper_lcm/`, `sakura_iris/`, `qwen21_image/`, `openvino_sd15/`, `sd15_gguf/`. |
 | ├── `video/` | 🟢 | Berkas MP4 dan GIF hasil interpolasi gerak C++ AVX2. |

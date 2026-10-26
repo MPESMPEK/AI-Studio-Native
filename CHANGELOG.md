@@ -155,6 +155,26 @@ Semua catatan perubahan, perbaikan bug, penambahan fitur, dan perombakan arsitek
 
 ---
 
+## [v1.5.0] - 2026-10-26
+### 🎨 Perombakan Desain UI/UX Total (All-New Aesthetic & Zero-Collision Architecture)
+- **Eliminasi Total Tabrakan & Tumpang Tindih Komponen (Zero-Collision Geometry)**:
+  - Mengisolasi tata letak layar menjadi zona terpartisi matematis murni. Seluruh komponen (Sidebar, Top Navbar, Sub Navbar, Chat Canvas, dan Bottom Input Dock) dihitung secara adaptif terhadap sisa ruang di atas Status Bar.
+  - Menghilangkan `TouchExtraPadding = (6, 6)` liar pada Dear ImGui (`TouchExtraPadding = (0, 0)`), mengembalikan komputasi batas hit-test dan bounding box ke tingkat presisi piksel 1:1.
+- **Encapsulated Control Ribbon (PhotoOptionsRibbon & TextOptionsRibbon)**:
+  - Seluruh tombol kontrol studio foto (`Prompt Asli/Auto`, `Framing Kamera`, `Rasio Aspek`, `Steps`, `HD Wajah`, dan `Foto Acuan`) kini berada di dalam ribbon berbingkai kartu modern (*encapsulated child container*) yang adaptif:
+    - Layar Lebar (>720px): Ditata dalam 1 baris ramping.
+    - Layar Sedang/Kecil (<720px): Otomatis ditata menjadi 2 tingkat rapi tanpa pernah memotong teks atau menembus batas status bar.
+  - Area teks obrolan juga memiliki ribbon khusus untuk lampiran file, pencarian web, dan panduan tombol kirim.
+- **Tema Visual Obsidian Studio (Palet Gelap Mewah & Estetik Tinggi)**:
+  - Latar belakang gradasi obsidian pekat (`#090D14`), kartu midnight slate (`#0E1421`), bingkai pemisah halus (`#243047`), dan aksen Electric Blue (`#3182CE`), Vivid Violet (`#8B5CF6`), Rose Crimson (`#F43F5E`), serta Emerald Mint (`#10B981`).
+  - Brand Header Card baru di sidebar kiri dengan logo `⚡ AI STUDIO NATIVE` dan indikator status aktif `🟢 100% C++ Direct3D 11`.
+- **Sidebar Dinamis Anti-Tergusur**:
+  - Tinggi daftar topik percakapan (`TopicsList`) kini dihitung secara fleksibel dari sisa ruang (`main_content_h - header_h - footer_h`), menjamin panel telemetri hardware dan tombol `[⚙️ Pengaturan]` serta `[📁 Output]` selalu terpancang kokoh dan tampak utuh di bagian bawah.
+- **Penyatuan Sistem Desain Resmi ke Obsidian Vault**:
+  - Diterbitkannya dokumen standar sistem desain lengkap di `docs/UI_UX_DESIGN_SYSTEM.md` yang merinci filosofi, diagram grid, token warna, spesifikasi komponen, dan pintasan keyboard global.
+
+---
+
 ## [v1.4.2] - 2026-10-26
 ### ✨ Fitur Baru (Penampil Gambar Layar Penuh Sinematik & F11 Borderless Window)
 - **Penampil Gambar Layar Penuh Sinematik Direct3D 11 (`RenderFullscreenImageModal`)**:
