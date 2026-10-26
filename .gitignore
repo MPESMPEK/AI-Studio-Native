@@ -5,11 +5,21 @@
 # 1. Model AI (Ukuran Besar GB - Jangan di-upload ke GitHub)
 models/*
 !models/README.md
+!models/**/
+!models/**/README.md
+!models/**/.gitkeep
+models/Gambar_OpenVINO/*
+!models/Gambar_OpenVINO/README.md
 *.gguf
 *.safetensors
 *.bin
 *.ckpt
 *.onnx
+*.json
+
+# Kecualikan config lokal aplikasi jika ada
+!android/**/package*.json
+!android/**/config*.json
 
 # 2. Toolkit Compiler GCC MinGW (Ukuran 700MB+ - Unduh resmi via w64devkit)
 w64devkit/
