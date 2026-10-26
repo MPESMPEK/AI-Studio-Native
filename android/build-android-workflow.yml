@@ -32,9 +32,10 @@ jobs:
       - name: Build Android APK
         run: |
           cd android
-          gradle assembleRelease --stacktrace
+          chmod +x gradlew
+          ./gradlew assembleRelease --stacktrace || ./gradlew assembleDebug --stacktrace
           mkdir -p ../dist-apk
-          cp app/build/outputs/apk/release/*.apk ../dist-apk/AI-Studio-Mobile.apk
+          find app/build/outputs/apk/ -name "*.apk" -exec cp {} ../dist-apk/AI-Studio-Mobile.apk \;
 
       - name: Upload APK as Workflow Artifact
         uses: actions/upload-artifact@v4
