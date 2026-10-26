@@ -155,6 +155,30 @@ Semua catatan perubahan, perbaikan bug, penambahan fitur, dan perombakan arsitek
 
 ---
 
+## [v1.4.2] - 2026-10-26
+### ✨ Fitur Baru (Penampil Gambar Layar Penuh Sinematik & F11 Borderless Window)
+- **Penampil Gambar Layar Penuh Sinematik Direct3D 11 (`RenderFullscreenImageModal`)**:
+  - Pengguna kini dapat langsung mengklik gambar hasil render di dalam bubble chat atau menekan tombol `🔍 Layar Penuh` untuk membuka penampil gambar fullscreen sinematik di dalam aplikasi.
+  - Gambar ditampilkan terpusat (*centered*) dengan menjaga rasio aspek asli (*aspect ratio preservation*) pada latar belakang gelap mewah.
+  - Menampilkan informasi resolusi gambar (contoh: `512 x 768 px`).
+  - Dilengkapi tombol navigasi cepat: `❌ Tutup (ESC)`, `📁 Buka di File Explorer`, `🖼️ Buka di Aplikasi Windows`, dan `📋 Salin Path Gambar`.
+  - Dapat ditutup seketika dengan menekan tombol keyboard `ESC`.
+- **Mode Layar Penuh Borderless Jendela Aplikasi (`ToggleBorderlessFullscreen`)**:
+  - Menambahkan tombol `⛶ Layar Penuh` / `🗗 Normal` di navbar atas aplikasi.
+  - Mendukung shortcut keyboard global `F11` untuk beralih ke mode layar penuh tanpa border (*borderless fullscreen*), menutupi taskbar untuk pengalaman kerja AI maksimal.
+- **Perbaikan Pemanggilan Path Absolut Windows (`GetFullPathNameA`)**:
+  - Mengatasi masalah tombol "Layar Penuh" sebelumnya yang tidak merespons di Windows 10/11 saat membuka aplikasi penampil foto bawaan Windows (UWP Photos) akibat penggunaan path relatif. Kini seluruh pemanggilan berkas dipastikan menggunakan path absolut kanonikal.
+
+### 🐛 Bug Fix
+- **Pembersihan Scrollbar Ganda di Bubble Chat**:
+  - Mengeliminasi scrollbar vertikal di dalam bubble WhatsApp dengan menyinkronkan kalkulasi lebar wrap teks dan menerapkan `ImGuiWindowFlags_NoScrollbar`.
+- **Perapian Tata Letak Opsi Generator Gambar**:
+  - Memperbaiki tumpang tindih (*overlap*) antara deretan dropdown opsi (`Framing`, `Rasio`, `Steps`, `HD Wajah`) dengan Status Bar bawah melalui penyesuaian tinggi area canvas chat dan lebar dropdown.
+- **Pembersihan Banner llama-cli & Tag Berpikir Reasoning**:
+  - Menyaring teks banner interaktif llama-cli `/glob <pattern>` dan merapikan tag reasoning `<think>` / `[Start thinking]` menjadi ikon collapsible elegan `💭 [Pemikiran Logika DeepSeek]` dan `💡 [Jawaban]`.
+
+---
+
 ## [v1.4.1] - 2026-10-26
 ### ✨ Fitur Baru (Inisialisasi Otomatis Folder Model AI & Impor File di Android)
 - **Auto-Initialization Folder Model AI di Penyimpanan HP (initAIStudioFolders)**:
