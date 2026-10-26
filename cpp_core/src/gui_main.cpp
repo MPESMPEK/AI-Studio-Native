@@ -2133,6 +2133,119 @@ static int s_next_node_id = 1;
 static bool s_nodes_initialized = false;
 static int s_node_preset_idx = 0;
 
+struct ModelRecommendation {
+    int sampler_idx;       // 0: euler_a, 1: dpm++ 2m, 2: lcm, 3: euler
+    int steps;
+    float cfg;
+    int res_idx;           // 4: 384x512
+    const char* neg_preset;
+    const char* desc;
+    const char* style_tag;
+};
+
+static ModelRecommendation GetModelRecommendation(const std::string& filename) {
+    std::string lower = filename;
+    for (char& c : lower) c = (char)tolower(c);
+
+    ModelRecommendation rec;
+    if (lower.find("lcm") != std::string::npos || lower.find("dreamshaper") != std::string::npos) {
+        rec.sampler_idx = 2; // LCM Fast
+        rec.steps = 5;
+        rec.cfg = 1.8f;
+        rec.res_idx = 3; // 384x384
+        rec.neg_preset = "blurry, low quality, distorted, deformed anatomy, extra limbs";
+        rec.desc = "LCM Turbo: 5 Steps, CFG 1.8, 384x384 (Super Kilat ~3-5s CPU)";
+        rec.style_tag = "masterpiece, cinematic art, vibrant lighting, ultra detailed";
+    } else if (lower.find("chilloutmix") != std::string::npos) {
+        rec.sampler_idx = 1; // DPM++ 2M Karras
+        rec.steps = 22;
+        rec.cfg = 6.0f;
+        rec.res_idx = 4; // 384x512
+        rec.neg_preset = "(doll, plastic skin, 3d, cgi:1.2), bad anatomy, deformed, mutated hands, missing fingers, blurry eyes, low quality";
+        rec.desc = "ChilloutMix Ni: DPM++ 2M Karras, 22 Steps, CFG 6.0, 384x512 (Foto Asia Alami)";
+        rec.style_tag = "gorgeous asian woman, delicate facial features, natural skin pores, soft studio lighting, authentic smile";
+    } else if (lower.find("ghostmix") != std::string::npos) {
+        rec.sampler_idx = 1; // DPM++ 2M Karras
+        rec.steps = 24;
+        rec.cfg = 6.5f;
+        rec.res_idx = 4; // 384x512
+        rec.neg_preset = "(worst quality, low quality:1.4), (deformed, bad anatomy:1.2), extra limbs, extra fingers, blurry, text, watermark";
+        rec.desc = "GhostMix V2.0: DPM++ 2M Karras, 24 Steps, CFG 6.5, 384x512 (Anime 2.5D Uncensored)";
+        rec.style_tag = "beautiful anime girl, 2.5d anime realism, volumetric hair, highly detailed expressive eyes, glowing skin, soft shadows";
+    } else if (lower.find("cyberrealistic") != std::string::npos) {
+        rec.sampler_idx = 0; // Euler Ancestral
+        rec.steps = 24;
+        rec.cfg = 5.5f;
+        rec.res_idx = 4; // 384x512
+        rec.neg_preset = "(doll, plastic skin, cgi, 3d, anime, illustration, fake face:1.2), bad anatomy, deformed, bad hands, extra limbs, blurry eyes";
+        rec.desc = "CyberRealistic V5: Euler Ancestral, 24 Steps, CFG 5.5, 384x512 (Fotorealistis DSLR)";
+        rec.style_tag = "dslr photo, Canon EOS R5 85mm f/1.4, micro skin pores, authentic human eyes, raw photo";
+    } else if (lower.find("realistic") != std::string::npos) {
+        rec.sampler_idx = 1; // DPM++ 2M Karras
+        rec.steps = 22;
+        rec.cfg = 6.0f;
+        rec.res_idx = 4; // 384x512
+        rec.neg_preset = "(bad art, low quality, bad anatomy:1.3), deformed hands, plastic look, blurry face";
+        rec.desc = "Realistic Vision: DPM++ 2M Karras, 22 Steps, CFG 6.0, 384x512 (Studio Portret)";
+        rec.style_tag = "studio portrait photography, dramatic lighting, sharp focus, 8k uhd";
+    } else {
+        rec.sampler_idx = 0; // Euler Ancestral
+        rec.steps = 20;
+        rec.cfg = 6.0f;
+        rec.res_idx = 4; // 384x512
+        rec.neg_preset = "bad anatomy, deformed, low quality, blurry, extra limbs";
+        rec.desc = "Standar Difusi: Euler Ancestral, 20 Steps, CFG 6.0, 384x512";
+        rec.style_tag = "high quality, detailed, sharp focus";
+    }
+    return rec;
+}
+
+static void AppendPromptTag(char* target, size_t max_len, const char* tag) {
+    if (!target || !tag || max_len == 0) return;
+    size_t cur_len = strlen(target);
+    if (cur_len == 0) {
+        strncpy(target, tag, max_len - 1);
+        target[max_len - 1] = '\0';
+        return;
+    }
+    if (strstr(target, tag) != nullptr) return;
+
+    std::string to_add = "";
+    if (target[cur_len - 1] == ' ' || target[cur_len - 1] == ',') {
+        if (target[cur_len - 1] == ',') to_add = " ";
+        to_add += tag;
+    } else {
+        to_add = ", " + std::string(tag);
+    }
+    strncat(target, to_add.c_str(), max_len - cur_len - 1);
+}
+
+static std::string s_last_recommendation_toast = "";
+
+static void ApplyModelRecommendations(int photo_idx) {
+    if (photo_idx < 0 || photo_idx >= (int)g_detected_photos.size()) return;
+    std::string fname = g_detected_photos[photo_idx].filename;
+    ModelRecommendation rec = GetModelRecommendation(fname);
+
+    g_sampling_method_idx = rec.sampler_idx;
+    strncpy(g_negative_prompt, rec.neg_preset, sizeof(g_negative_prompt) - 1);
+
+    for (auto& sn : s_studio_nodes) {
+        if (sn.type == NODE_TYPE_SAMPLER) {
+            sn.sampler_idx = rec.sampler_idx;
+            sn.steps = rec.steps;
+            sn.cfg = rec.cfg;
+            sn.res_idx = rec.res_idx;
+        } else if (sn.type == NODE_TYPE_PROMPT) {
+            if (strlen(sn.neg_prompt) == 0 || strstr(sn.neg_prompt, "blurry") != nullptr) {
+                strncpy(sn.neg_prompt, rec.neg_preset, sizeof(sn.neg_prompt) - 1);
+            }
+        }
+    }
+
+    s_last_recommendation_toast = "Rekomendasi Diterapkan: " + std::string(rec.desc);
+}
+
 static void InitDefaultStudioNodes() {
     s_studio_nodes.clear();
     s_next_node_id = 1;
@@ -2143,7 +2256,7 @@ static void InitDefaultStudioNodes() {
     n0.type = NODE_TYPE_MODEL;
     n0.title = "[MODEL] Checkpoint Loader";
     n0.pos = ImVec2(30.0f, 30.0f);
-    n0.base_size = ImVec2(280.0f, 175.0f);
+    n0.base_size = ImVec2(300.0f, 220.0f);
     n0.is_active = true;
     n0.model_idx = g_selected_photo;
     s_studio_nodes.push_back(n0);
@@ -2166,7 +2279,7 @@ static void InitDefaultStudioNodes() {
     n2.type = NODE_TYPE_PROMPT;
     n2.title = "[PROMPT] Positif & Negatif";
     n2.pos = ImVec2(370.0f, 30.0f);
-    n2.base_size = ImVec2(360.0f, 250.0f);
+    n2.base_size = ImVec2(410.0f, 390.0f);
     n2.is_active = true;
     strcpy(n2.prompt, "Close-up portrait of a gorgeous Indonesian woman smiling outdoors in nature, golden hour warm lighting, natural skin pores, Canon EOS R5 85mm f/1.4, 8k uhd photorealistic");
     strcpy(n2.neg_prompt, "blurry, bad anatomy, bad hands, deformed, disfigured, lowres, watermark, extra limbs");
@@ -2192,7 +2305,7 @@ static void InitDefaultStudioNodes() {
     n4.type = NODE_TYPE_SAMPLER;
     n4.title = "[SAMPLER] K-Sampler Engine";
     n4.pos = ImVec2(370.0f, 320.0f);
-    n4.base_size = ImVec2(360.0f, 325.0f);
+    n4.base_size = ImVec2(360.0f, 345.0f);
     n4.is_active = true;
     n4.steps = 20;
     n4.cfg = 7.0f;
@@ -2241,7 +2354,7 @@ static void AddStudioNode(StudioNodeType type) {
 
     if (type == NODE_TYPE_MODEL) {
         n.title = "[MODEL] Checkpoint Loader";
-        n.base_size = ImVec2(270.0f, 170.0f);
+        n.base_size = ImVec2(300.0f, 220.0f);
         n.model_idx = g_selected_photo;
     } else if (type == NODE_TYPE_LORA) {
         n.title = "[LoRA] Adaptor & Bobot";
@@ -2250,7 +2363,7 @@ static void AddStudioNode(StudioNodeType type) {
         n.lora_strength = 0.70f;
     } else if (type == NODE_TYPE_PROMPT) {
         n.title = "[PROMPT] Positif & Negatif";
-        n.base_size = ImVec2(360.0f, 240.0f);
+        n.base_size = ImVec2(410.0f, 390.0f);
         strcpy(n.prompt, "portrait photograph, 8k uhd, masterpiece, natural lighting");
         strcpy(n.neg_prompt, "blurry, low quality, bad anatomy, deformed");
     } else if (type == NODE_TYPE_CONTROLNET) {
@@ -2862,7 +2975,8 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
 
         char child_id[64];
         snprintf(child_id, sizeof(child_id), "NodeBox_%d", node.id);
-        ImGui::BeginChild(child_id, n_size, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        ImGuiWindowFlags child_flags = (node.type == NODE_TYPE_PROMPT) ? 0 : (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        ImGui::BeginChild(child_id, n_size, true, child_flags);
         {
             // HEADER BAR: FULL-WIDTH INVISIBLE DRAG BUTTON (100% SMOOTH DRAGGING)
             float header_h = 28.0f * s_canvas_zoom;
@@ -2932,6 +3046,21 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
                 if (node.model_idx >= 0 && node.model_idx < (int)g_detected_photos.size()) {
                     ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 0.9f), "Tipe: %s", g_detected_photos[node.model_idx].is_custom ? "Kustom" : "Bawaan");
                     ImGui::TextDisabled("Ukuran: %d MB | Pure C++ FP16", g_detected_photos[node.model_idx].size_mb);
+
+                    std::string mfile = g_detected_photos[node.model_idx].filename;
+                    ModelRecommendation mrec = GetModelRecommendation(mfile);
+
+                    ImGui::Spacing();
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.45f, 0.78f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.28f, 0.58f, 0.95f, 1.0f));
+                    if (ImGui::Button("[*] Terapkan Rekomendasi Model Ini", ImVec2(-1, 24.0f * s_canvas_zoom))) {
+                        ApplyModelRecommendations(node.model_idx);
+                    }
+                    ImGui::PopStyleColor(2);
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip("Otomatis sinkronkan sampler, steps, CFG, resolusi & negative prompt terbaik untuk model ini.");
+                    }
+                    ImGui::TextDisabled("Saran: %s", mrec.desc);
                 }
                 ImGui::TextColored(ImVec4(0.66f, 0.33f, 0.97f, 1.0f), "Output: MODEL ->");
             }
@@ -2956,38 +3085,87 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
                 ImGui::InputText("##PromptNeg", node.neg_prompt, sizeof(node.neg_prompt));
 
                 ImGui::Spacing();
-                if (ImGui::Button("+ 8K DSLR", ImVec2(0, 22.0f * s_canvas_zoom))) {
-                    strcat(node.prompt, ", Canon EOS R5 85mm f/1.4, 8k uhd photorealistic");
+
+                // Cari model yang aktif di kanvas untuk saran dinamis
+                std::string active_model_file = "";
+                for (const auto& sn : s_studio_nodes) {
+                    if (sn.type == NODE_TYPE_MODEL && sn.model_idx >= 0 && sn.model_idx < (int)g_detected_photos.size()) {
+                        active_model_file = g_detected_photos[sn.model_idx].filename;
+                        break;
+                    }
                 }
-                ImGui::SameLine();
-                if (ImGui::Button("+ Pori Kulit", ImVec2(0, 22.0f * s_canvas_zoom))) {
-                    strcat(node.prompt, ", raw photo, natural skin texture, subtle imperfections, film grain");
-                    strcat(node.neg_prompt, ", cgi, 3d, doll, plastic skin, anime, illustration, airbrushed, cartoon, oversaturated, fake face");
+                if (active_model_file.empty() && g_selected_photo >= 0 && g_selected_photo < (int)g_detected_photos.size()) {
+                    active_model_file = g_detected_photos[g_selected_photo].filename;
                 }
-                ImGui::SameLine();
-                if (ImGui::Button("+ Sunset", ImVec2(0, 22.0f * s_canvas_zoom))) {
-                    strcat(node.prompt, ", golden hour warm sunset lighting");
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Bersihkan", ImVec2(0, 22.0f * s_canvas_zoom))) {
-                    node.prompt[0] = 0;
+                ModelRecommendation model_rec = GetModelRecommendation(active_model_file);
+
+                ImGui::TextColored(ImVec4(1.0f, 0.82f, 0.28f, 1.0f), "SARAN PROMPT (Klik Sisip/Salin - Tidak Mengubah Teks):");
+
+                // Selector Kategori Saran Prompt
+                static int s_prompt_saran_tab = 0;
+                const char* tab_names[] = { "Model Aktif", "2 Orang / Couple", "DSLR & Detail", "Pencahayaan" };
+                for (int t = 0; t < 4; t++) {
+                    if (t > 0) ImGui::SameLine();
+                    bool is_tab_sel = (s_prompt_saran_tab == t);
+                    if (is_tab_sel) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.25f, 0.50f, 0.85f, 1.0f));
+                    if (ImGui::SmallButton(tab_names[t])) {
+                        s_prompt_saran_tab = t;
+                    }
+                    if (is_tab_sel) ImGui::PopStyleColor();
                 }
 
-                // Tombol Multi-Orang & Anti-AI Plastik
-                if (ImGui::Button("+ 2 Orang (Besties)", ImVec2(0, 22.0f * s_canvas_zoom))) {
+                ImGui::Spacing();
+
+                auto RenderPromptSuggestion = [&](const char* label, const char* tag_text, const char* neg_tag) {
+                    ImGui::TextColored(ImVec4(0.40f, 0.90f, 1.0f, 1.0f), "[Saran] %s:", label);
+                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.12f, 0.16f, 0.22f, 0.85f));
+                    ImGui::BeginChild((std::string("sug_box_") + label).c_str(), ImVec2(-1, 38.0f * s_canvas_zoom), true, ImGuiWindowFlags_NoScrollbar);
+                    ImGui::TextWrapped("%s", tag_text);
+                    ImGui::EndChild();
+                    ImGui::PopStyleColor();
+
+                    char add_btn[64], cpy_btn[64];
+                    snprintf(add_btn, sizeof(add_btn), "+ Sisip di Akhir##%s_%d", label, node.id);
+                    snprintf(cpy_btn, sizeof(cpy_btn), "Salin##%s_%d", label, node.id);
+
+                    if (ImGui::SmallButton(add_btn)) {
+                        AppendPromptTag(node.prompt, sizeof(node.prompt), tag_text);
+                        if (neg_tag && strlen(neg_tag) > 0) {
+                            AppendPromptTag(node.neg_prompt, sizeof(node.neg_prompt), neg_tag);
+                        }
+                    }
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Menambahkan kata kunci ini ke akhir prompt Anda tanpa menghapus atau mengubah teks yang ada.");
+
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton(cpy_btn)) {
+                        ImGui::SetClipboardText(tag_text);
+                    }
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Salin teks saran ke Clipboard Windows.");
+                    ImGui::Spacing();
+                };
+
+                if (s_prompt_saran_tab == 0) {
+                    RenderPromptSuggestion("Gaya Model Ini", model_rec.style_tag, model_rec.neg_preset);
+                    ImGui::TextDisabled("Rekomendasi otomatis disesuaikan dengan checkpoint yang dipilih di alur pipa.");
+                } else if (s_prompt_saran_tab == 1) {
+                    RenderPromptSuggestion("2 Sahabat (Besties)", "Two gorgeous Indonesian women, best friends standing together smiling outdoors, girl on left with long dark hair, girl on right with ponytail, distinct natural faces, authentic candid portrait", "(doll, plastic skin:1.2), bad anatomy, extra limbs, fused bodies");
+                    RenderPromptSuggestion("Pasangan (Couple)", "Romantic couple, handsome Indonesian young man on left and beautiful woman on right hugging outdoors in city park, genuine smile, candid photo, eye contact, distinct faces", "(doll, plastic skin:1.2), bad anatomy, deformed, fused bodies");
+                    ImGui::TextColored(ImVec4(1.0f, 0.70f, 0.30f, 0.9f), "Tips 2 Orang: Gunakan min resolusi 384x512 dan jelaskan posisi (kiri & kanan) agar muka tidak menyatu.");
+                } else if (s_prompt_saran_tab == 2) {
+                    RenderPromptSuggestion("DSLR 85mm f/1.4", "Canon EOS R5 85mm f/1.4, 8k uhd photorealistic, sharp authentic eyes, shallow depth of field, raw photo", "(cgi, 3d render, doll, plastic skin:1.2)");
+                    RenderPromptSuggestion("Pori Kulit Nyata", "natural skin texture, micro pores, subtle freckles, film grain, unedited authentic photo", "smooth plastic skin, mannequin, airbrushed");
+                } else if (s_prompt_saran_tab == 3) {
+                    RenderPromptSuggestion("Sunset Golden Hour", "golden hour warm sunset lighting, soft cinematic rim light, atmospheric glow", nullptr);
+                    RenderPromptSuggestion("Studio Softbox", "soft diffused studio lighting, beauty dish, high key, gentle shadows", nullptr);
+                }
+
+                ImGui::Spacing();
+                if (ImGui::SmallButton("Bersihkan Prompt")) {
                     node.prompt[0] = 0;
-                    strcpy(node.prompt, "Two gorgeous Indonesian women, best friends standing together smiling outdoors in nature, candid photography, natural skin texture, Canon EOS R5 85mm, 8k uhd");
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("+ Pasangan (Couple)", ImVec2(0, 22.0f * s_canvas_zoom))) {
-                    node.prompt[0] = 0;
-                    strcpy(node.prompt, "Romantic couple, handsome Indonesian young man and beautiful woman hugging outdoors in city park, genuine smile, candid photo, natural daylight, 8k uhd");
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("+ Realistis DSLR", ImVec2(0, 22.0f * s_canvas_zoom))) {
-                    strcat(node.prompt, ", raw unedited candid photo, authentic human facial features, realistic eyes, natural lighting");
-                    strcat(node.neg_prompt, ", cgi, 3d render, doll, plastic skin, anime, illustration, airbrushed, cartoon, oversaturated, fake face, blurry");
-                }
+                ImGui::TextDisabled("Teks prompt utama Anda aman 100% dan tidak akan ditimpa tanpa izin.");
+
                 ImGui::TextColored(ImVec4(0.22f, 0.74f, 0.97f, 1.0f), "Output: CONDITIONING ->");
             }
             else if (node.type == NODE_TYPE_CONTROLNET) {
@@ -3018,6 +3196,33 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
                 }
             }
             else if (node.type == NODE_TYPE_SAMPLER) {
+                // Tombol Sinkron Rekomendasi Model Aktif
+                std::string s_act_model = "";
+                for (const auto& sn : s_studio_nodes) {
+                    if (sn.type == NODE_TYPE_MODEL && sn.model_idx >= 0 && sn.model_idx < (int)g_detected_photos.size()) {
+                        s_act_model = g_detected_photos[sn.model_idx].filename;
+                        break;
+                    }
+                }
+                if (s_act_model.empty() && g_selected_photo >= 0 && g_selected_photo < (int)g_detected_photos.size()) {
+                    s_act_model = g_detected_photos[g_selected_photo].filename;
+                }
+                ModelRecommendation sam_rec = GetModelRecommendation(s_act_model);
+
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.40f, 0.65f, 1.0f));
+                if (ImGui::Button("[*] Rekomendasi Sampler Model Ini", ImVec2(-1, 22.0f * s_canvas_zoom))) {
+                    node.sampler_idx = sam_rec.sampler_idx;
+                    node.steps = sam_rec.steps;
+                    node.cfg = sam_rec.cfg;
+                    node.res_idx = sam_rec.res_idx;
+                }
+                ImGui::PopStyleColor();
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Terapkan otomatis langkah steps (%d), CFG (%.1f), dan sampler rekomendasi untuk model ini.",
+                        sam_rec.steps, sam_rec.cfg);
+                }
+                ImGui::Spacing();
+
                 ImGui::Text("Metode Sampling:");
                 static const char* s_sampler_names[] = { "Euler Ancestral (euler_a)", "DPM++ 2M Karras", "LCM Fast (4-Step)", "Euler Standar" };
                 ImGui::SetNextItemWidth(-1);
@@ -4108,6 +4313,13 @@ int WINAPI WinMain
             if (ImGui::IsItemHovered() && !g_photo_items.empty() && g_selected_photo < (int)g_photo_items.size()) {
                 ImGui::SetTooltip("Model Difusi Aktif: %s", g_photo_items[g_selected_photo]);
             }
+            ImGui::SameLine();
+            if (ImGui::Button("[*] Rekomendasi", ImVec2(98, 26))) {
+                ApplyModelRecommendations(g_selected_photo);
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Terapkan otomatis langkah steps, CFG, sampler & filter negatif terbaik untuk model ini.");
+            }
         } else if (g_selected_mode == 6) {
             ImGui::AlignTextToFramePadding();
             ImGui::TextColored(ImVec4(0.70f, 0.35f, 0.98f, 1.0f), "[NODE] Studio Node (Visual Pipeline)");
@@ -4940,6 +5152,13 @@ int WINAPI WinMain
                         ImGui::Combo("##SettingPhoto", &g_selected_photo, g_photo_items.data(), (int)g_photo_items.size());
                     }
                     HelpBadgePhotoModels(g_selected_photo);
+
+                    if (ImGui::Button("[*] Terapkan Setting Rekomendasi Model Ini", ImVec2(-1, 26))) {
+                        ApplyModelRecommendations(g_selected_photo);
+                    }
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip("Otomatis optimalkan sampler, langkah steps, CFG & filter negatif untuk model difusi ini.");
+                    }
 
                     ImGui::Spacing();
                     if (ImGui::Button("[+] Pasang Model .GGUF Baru", ImVec2(210, 28))) {
