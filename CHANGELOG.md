@@ -155,6 +155,26 @@ Semua catatan perubahan, perbaikan bug, penambahan fitur, dan perombakan arsitek
 
 ---
 
+## [v1.5.1] - 2026-10-26
+### ⚡ Fitur Baru (Menu Batas RAM & Mode Los RAM / Instant Purge)
+- **Menu Pilihan Profil Alokasi RAM (Batas RAM vs Los RAM)**:
+  - Penambahan pengaturan kuota RAM fisik Windows (`SetProcessWorkingSetSize`):
+    - **🚀 Mode Los RAM (Unlimited / Bebas)**: Membebaskan pembatasan sistem untuk performa AI dan kecepatan komputasi CPU/GPU maksimal tanpa hambatan alokasi.
+    - **🛡️ Batas 4 GB (Hemat - Laptop 8 GB)**: Membatasi working set memori hingga maksimal 4 GB agar laptop dengan RAM pas-pasan tetap lancar dan tidak memicu disk swapping saat membuka browser/tugas lain.
+    - **⚖️ Batas 6 GB (Seimbang - Standar)**: Batasan seimbang untuk penggunaan harian dan multitasking standar.
+    - **⚡ Batas 8 GB (Maksimal Multitasking)**: Memberikan keleluasaan working set tinggi untuk laptop/PC dengan RAM 16 GB+.
+- **Penyesuaian Dinamis Ukuran Konteks LLM (Llama Engine Context)**:
+  - Ukuran jendela konteks percakapan LLM disinkronkan secara otomatis sesuai mode RAM yang aktif: 2048 token (Batas 4 GB), 3072 token (Batas 6 GB), dan 4096 token (Batas 8 GB & Mode Los RAM).
+- **Tombol Pintas "🧹 Los RAM Sekarang" di Sidebar & Pengaturan**:
+  - Disediakan tombol aksi cepat di Sidebar Kiri (di bawah status hardware) dan di Modal Pengaturan.
+  - Memanggil `MemoryManager::Get().PurgeAllAsync()` di latar belakang untuk seketika membuang cache Direct3D 11 VRAM dan memanggil Windows API `EmptyWorkingSet(GetCurrentProcess())`, memangkas penggunaan RAM yang membengkak secara instan.
+- **Auto-Los RAM Setelah Selesai Render**:
+  - Opsi otomatisasi pembersihan RAM pasca-render foto atau respon teks obrolan, mengembalikan memori proses ke kondisi efisien seketika pekerjaan komputasi AI selesai.
+- **Indikator Lencana Mode RAM di Sidebar**:
+  - Menampilkan lencana status mode aktif (`⚡ Mode: Los RAM` / `🛡️ Batas 4 GB` / dll.) secara langsung pada kartu status perangkat keras sidebar.
+
+---
+
 ## [v1.5.0] - 2026-10-26
 ### 🎨 Perombakan Desain UI/UX Total (All-New Aesthetic & Zero-Collision Architecture)
 - **Eliminasi Total Tabrakan & Tumpang Tindih Komponen (Zero-Collision Geometry)**:

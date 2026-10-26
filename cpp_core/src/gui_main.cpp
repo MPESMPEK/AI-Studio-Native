@@ -140,6 +140,40 @@ static std::string g_live_stream_text = "";
 static std::mutex g_stream_mutex;
 static std::chrono::steady_clock::time_point g_process_start_time;
 
+// RAM Limit & Loss RAM Controls
+static int g_ram_limit_mode = 0; // 0: Mode Los RAM (Unlimited), 1: Batas 4 GB, 2: Batas 6 GB, 3: Batas 8 GB
+static const char* g_ram_limit_names[] = {
+    "🚀 Mode Los RAM (Unlimited / Bebas)",
+    "🛡️ Batas 4 GB (Hemat - Laptop 8 GB)",
+    "⚖️ Batas 6 GB (Seimbang - Standar)",
+    "⚡ Batas 8 GB (Maksimal Multitasking)"
+};
+static bool g_auto_purge_ram = true; // Auto-Los RAM setelah selesai render
+
+void ApplyRamLimit(int mode) {
+    HANDLE hProcess = GetCurrentProcess();
+    if (!hProcess) return;
+    if (mode == 0) {
+        // Mode Los RAM (Bebas / Unlimited)
+        SetProcessWorkingSetSize(hProcess, (SIZE_T)-1, (SIZE_T)-1);
+    } else if (mode == 1) {
+        // Batas 4 GB
+        SIZE_T min_ws = 256ULL * 1024ULL * 1024ULL;
+        SIZE_T max_ws = 4ULL * 1024ULL * 1024ULL * 1024ULL;
+        SetProcessWorkingSetSize(hProcess, min_ws, max_ws);
+    } else if (mode == 2) {
+        // Batas 6 GB
+        SIZE_T min_ws = 512ULL * 1024ULL * 1024ULL;
+        SIZE_T max_ws = 6ULL * 1024ULL * 1024ULL * 1024ULL;
+        SetProcessWorkingSetSize(hProcess, min_ws, max_ws);
+    } else if (mode == 3) {
+        // Batas 8 GB
+        SIZE_T min_ws = 1024ULL * 1024ULL * 1024ULL;
+        SIZE_T max_ws = 8ULL * 1024ULL * 1024ULL * 1024ULL;
+        SetProcessWorkingSetSize(hProcess, min_ws, max_ws);
+    }
+}
+
 static std::thread g_worker_thread;
 static std::atomic<bool> g_worker_finished(false);
 static std::string g_worker_result = "";
@@ -1204,15 +1238,16 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
         bool is_rtx_active = (g_hardware_backend_mode == 2 || (g_hardware_backend_mode == 0 && g_hw_profile.has_nvidia_gpu));
         int actual_gpu_layers = is_rtx_active ? (g_gpu_layers > 0 ? g_gpu_layers : 99) : 0;
 
+        int ctx_size = (g_ram_limit_mode == 1) ? 2048 : (g_ram_limit_mode == 2 ? 3072 : 4096);
         if (actual_gpu_layers > 0) {
             snprintf(cmd, sizeof(cmd),
-                "llama_bin\\llama-cli.exe -m \"%s\" -f \"%s\" -ngl %d -c 4096 -n 512 -t %d --single-turn --no-display-prompt --log-disable --simple-io",
-                model_path.c_str(), prompt_file_path.c_str(), actual_gpu_layers, num_threads
+                "llama_bin\\llama-cli.exe -m \"%s\" -f \"%s\" -ngl %d -c %d -n 512 -t %d --single-turn --no-display-prompt --log-disable --simple-io",
+                model_path.c_str(), prompt_file_path.c_str(), actual_gpu_layers, ctx_size, num_threads
             );
         } else {
             snprintf(cmd, sizeof(cmd),
-                "llama_bin\\llama-cli.exe -m \"%s\" -f \"%s\" -c 4096 -n 512 -t %d --single-turn --no-display-prompt --log-disable --simple-io",
-                model_path.c_str(), prompt_file_path.c_str(), num_threads
+                "llama_bin\\llama-cli.exe -m \"%s\" -f \"%s\" -c %d -n 512 -t %d --single-turn --no-display-prompt --log-disable --simple-io",
+                model_path.c_str(), prompt_file_path.c_str(), ctx_size, num_threads
             );
         }
     }
@@ -2428,6 +2463,7 @@ int WINAPI WinMain
     g_hw_profile = DetectHardwareAndCompatibility();
     g_hw_initialized = true;
     ApplyHardwareCompatibilitySettings();
+    ApplyRamLimit(g_ram_limit_mode); // Terapkan Mode Batas RAM / Los RAM sejak awal
 
     // 2. Buat Windows Class & Window Native
     WNDCLASSEXW wc = {
@@ -2550,6 +2586,9 @@ int WINAPI WinMain
                 g_is_processing = false;
                 g_worker_finished = false;
                 g_process_progress.store(0.0f);
+                if (g_auto_purge_ram) {
+                    MemoryManager::Get().PurgeAllAsync();
+                }
                 {
                     std::lock_guard<std::mutex> lock(g_stream_mutex);
                     g_live_stream_text = "";
@@ -2629,9 +2668,9 @@ int WINAPI WinMain
 
         // Hitung tinggi daftar percakapan secara dinamis agar Telemetri & Tombol Pengaturan selalu tampak sempurna!
         const float sidebar_header_h = 96.0f;
-        const float sidebar_footer_h = 118.0f;
+        const float sidebar_footer_h = 176.0f; // Disesuaikan untuk kartu status, indikator batas RAM & tombol Los RAM
         float topics_h = main_content_h - sidebar_header_h - sidebar_footer_h;
-        if (topics_h < 75.0f) topics_h = 75.0f;
+        if (topics_h < 70.0f) topics_h = 70.0f;
 
         // Daftar Percakapan / Topics (Scrollable)
         ImGui::BeginChild("TopicsList", ImVec2(-1, topics_h), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
@@ -2703,7 +2742,28 @@ int WINAPI WinMain
 
         ImGui::TextDisabled("STATUS HARDWARE");
         ImGui::Text("RAM: %.1f / %.1f GB", used_ram_gb, total_ram_gb);
-        ImGui::ProgressBar(ram_fraction, ImVec2(-1, 6), "");
+        ImGui::ProgressBar(ram_fraction, ImVec2(-1, 5), "");
+
+        // Mode RAM Badge & Tombol Cepat Los RAM
+        const char* ram_badge = (g_ram_limit_mode == 0) ? "⚡ Mode: Los RAM" : ((g_ram_limit_mode == 1) ? "🛡️ Batas 4 GB" : ((g_ram_limit_mode == 2) ? "⚖️ Batas 6 GB" : "⚡ Batas 8 GB"));
+        ImGui::TextColored(g_ram_limit_mode == 0 ? ImVec4(0.35f, 0.85f, 1.0f, 1.0f) : ImVec4(0.95f, 0.85f, 0.35f, 1.0f), "%s", ram_badge);
+
+        if (MemoryManager::Get().IsPurging()) {
+            ImGui::BeginDisabled();
+            ImGui::Button("⏳ Membersihkan...", ImVec2(-1, 24));
+            ImGui::EndDisabled();
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f, 0.45f, 0.38f, 0.90f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.15f, 0.60f, 0.50f, 1.00f));
+            if (ImGui::Button("🧹 Los RAM Sekarang", ImVec2(-1, 24))) {
+                MemoryManager::Get().PurgeAllAsync();
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Klik untuk instan mengosongkan cache RAM & VRAM (Purge Working Set).");
+            }
+            ImGui::PopStyleColor(2);
+        }
+
         if (is_rtx_active) {
             std::string gpu_label = g_hw_profile.gpus.empty() ? "NVIDIA RTX" : g_hw_profile.gpus[g_hw_profile.selected_gpu_idx].name;
             if (gpu_label.length() > 24) gpu_label = gpu_label.substr(0, 22) + "..";
@@ -3899,7 +3959,7 @@ int WINAPI WinMain
                     );
                 }
 
-                                if (ImGui::CollapsingHeader("🧹 Pengelolaan & Optimasi Memori (RAM / VRAM)", ImGuiTreeNodeFlags_DefaultOpen)) {
+                                if (ImGui::CollapsingHeader("🧹 Pengelolaan & Optimasi Memori (Batas RAM & Los RAM)", ImGuiTreeNodeFlags_DefaultOpen)) {
                     float currentRAM_MB = (float)MemoryManager::Get().GetCurrentWorkingSetBytes() / (1024.0f * 1024.0f);
                     float peakRAM_MB = (float)MemoryManager::Get().GetPeakWorkingSetBytes() / (1024.0f * 1024.0f);
 
@@ -3912,17 +3972,48 @@ int WINAPI WinMain
                     ImGui::TextDisabled("%s", MemoryManager::Get().GetLastStatusMessage().c_str());
 
                     ImGui::Spacing();
+                    ImGui::Separator();
+                    ImGui::Spacing();
+
+                    // MENU 1: PILIHAN BATAS RAM VS MODE LOS RAM
+                    ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 1.0f), "PILIHAN MODE ALOKASI RAM:");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 10.0f);
+                    if (ImGui::Combo("##RamLimitCombo", &g_ram_limit_mode, g_ram_limit_names, IM_ARRAYSIZE(g_ram_limit_names))) {
+                        ApplyRamLimit(g_ram_limit_mode);
+                    }
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip(
+                            "Menu Batas RAM vs Mode Los RAM:\n"
+                            "1. Mode Los RAM (Bebas / Unlimited): Performa penuh tanpa batasan sistem. Kecepatan maksimal.\n"
+                            "2. Batas 4 GB (Hemat): Menjaga working set tetap rendah agar laptop 8 GB tidak lemot.\n"
+                            "3. Batas 6 GB (Seimbang): Pilihan pas untuk multitasking harian.\n"
+                            "4. Batas 8 GB: Kebebasan pemakaian RAM tinggi untuk laptop 16 GB ke atas."
+                        );
+                    }
+
+                    ImGui::Spacing();
+                    ImGui::Checkbox("Auto-Los RAM setelah selesai render", &g_auto_purge_ram);
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip("Otomatis membersihkan RAM fisik dan VRAM GPU seketika setelah AI selesai membuat foto atau menjawab percakapan.");
+                    }
+
+                    ImGui::Spacing();
+
+                    // MENU 2: TOMBOL AKSI LOS RAM SEKARANG
                     if (MemoryManager::Get().IsPurging()) {
                         ImGui::BeginDisabled();
                         ImGui::Button("⏳ Sedang Membersihkan Memori...", ImVec2(-1, 34));
                         ImGui::EndDisabled();
                     } else {
-                        if (ImGui::Button("🧹 Bersihkan RAM & VRAM Sekarang (Purge All)", ImVec2(-1, 34))) {
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.48f, 0.40f, 1.0f));
+                        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.18f, 0.62f, 0.52f, 1.0f));
+                        if (ImGui::Button("🧹 Los RAM & VRAM Sekarang (Purge All Memory)", ImVec2(-1, 34))) {
                             MemoryManager::Get().PurgeAllAsync();
                         }
                         if (ImGui::IsItemHovered()) {
                             ImGui::SetTooltip("Melepas seluruh buffer tekstur GPU D3D11 yang tidak aktif, memadatkan working set proses, dan mengembalikan RAM fisik ke Windows secara instan.");
                         }
+                        ImGui::PopStyleColor(2);
                     }
                 }
 

@@ -115,4 +115,36 @@ Antarmuka dibangun dengan palet warna bernuansa **Cyber Studio Dark Glass**:
 
 ---
 
-*Dokumen ini merupakan bagian dari standar arsitektur resmi AI Studio Native v1.5.0.*
+## ⚡ 6. Arsitektur Manajemen Memori: Menu Batas RAM & Mode Los RAM
+
+Sistem manajemen memori AI Studio Native dirancang untuk memberikan fleksibilitas total antara efisiensi laptop hemat daya dan performa ekstrem tanpa batas:
+
+### A. Pilihan Profil Alokasi RAM (Working Set Clamping)
+Tersedia melalui dropdown di Modal Pengaturan (`[⚙️ Pengaturan]` -> `Pengelolaan & Optimasi Memori`) dan ditampilkan status lencananya di Sidebar:
+
+1. **🚀 Mode Los RAM (Unlimited / Bebas)**:
+   - Menghapus semua batasan alokasi (`SetProcessWorkingSetSize((SIZE_T)-1, (SIZE_T)-1)`).
+   - Seluruh core CPU dan thread engine berjalan pada kecepatan komputasi maksimal dengan konteks LLM penuh (4096 tokens).
+2. **🛡️ Batas 4 GB (Hemat - Laptop 8 GB)**:
+   - Mengunci kuota memori fisik proses maksimal 4 GB (`max_ws = 4 GB`).
+   - Sangat ideal untuk laptop dengan RAM 8 GB agar Windows dan aplikasi lain (browser, dokumen) tidak mengalami lag atau swapping ke disk. Konteks LLM disesuaikan ke 2048 tokens.
+3. **⚖️ Batas 6 GB (Seimbang - Standar)**:
+   - Mengunci kuota memori fisik maksimal 6 GB.
+   - Pilihan ideal untuk laptop 8 GB - 12 GB RAM dengan konteks LLM 3072 tokens.
+4. **⚡ Batas 8 GB (Maksimal Multitasking)**:
+   - Memberikan kelonggaran hingga 8 GB untuk laptop/PC dengan RAM 16 GB ke atas.
+
+### B. Tombol Aksi Cepat "🧹 Los RAM Sekarang" (Instant Purge)
+- Diletakkan di **Sidebar Kiri** (tepat di bawah micro-progress bar RAM) dan di **Modal Pengaturan**.
+- Menjalankan `MemoryManager::Get().PurgeAllAsync()` di background thread secara non-blocking:
+  - Mengosongkan cache tekstur GPU Direct3D 11 (`m_pd3dDeviceContext->Flush()`).
+  - Melepaskan memori halaman tak terpakai ke OS via Windows API `EmptyWorkingSet(GetCurrentProcess())`.
+  - Seketika mereklamasi ratusan megabyte hingga gigabyte RAM yang membengkak.
+
+### C. Auto-Los RAM Pasca-Render
+- Opsi checkbox `"Auto-Los RAM setelah selesai render"` di Pengaturan.
+- Ketika aktif (default: ON), worker thread secara otomatis memicu pembersihan memori seketika setelah AI selesai menghasilkan foto atau teks balasan, memastikan aplikasi kembali ke kondisi *lean & light*.
+
+---
+
+*Dokumen ini merupakan bagian dari standar arsitektur resmi AI Studio Native v1.5.1.*
