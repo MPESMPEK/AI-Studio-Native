@@ -2005,7 +2005,7 @@ static bool DrawDashboardCard(
 
 // Render Dashboard Card Hub (Modern Direct3D 11 Vector Cards)
 static void RenderDashboardHub(float panel_w, float panel_h) {
-    ImGui::BeginChild("DashboardHub", ImVec2(panel_w, panel_h), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+    ImGui::BeginChild("DashboardHub", ImVec2(panel_w, panel_h), false, 0);
 
     ImGui::Dummy(ImVec2(0, 6));
 
@@ -2373,7 +2373,7 @@ void RenderFullscreenImageModal(float app_width, float app_height) {
 // ================= STATUS BAR TELEMETRI HARDWARE DIRECT3D 11 =================
 void RenderD3D11StatusBar(float app_width, float app_height) {
     const float bar_height = 26.0f;
-    ImGui::SetCursorPos(ImVec2(0, app_height - bar_height));
+    ImGui::SetCursorPos(ImVec2(0.0f, app_height - bar_height));
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.035f, 0.050f, 0.075f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_Border,  ImVec4(0.140f, 0.180f, 0.260f, 1.0f));
@@ -2619,21 +2619,30 @@ int WINAPI WinMain
         ImGui::SetNextWindowSize(ImVec2(app_width, app_height));
         ImGuiWindowFlags root_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
                                       ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
-                                      ImGuiWindowFlags_NoBringToFrontOnFocus;
+                                      ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
         ImGui::Begin("RootWindow", NULL, root_flags);
+        ImGui::PopStyleVar(2);
 
         // Sinkronisasi status engine ke modul Hardware Telemetry
         HardwareTelemetry::Get().SetActiveEngineThreads((uint32_t)g_num_threads);
         HardwareTelemetry::Get().SetTAESDActive(g_use_fast_vae);
 
         const float status_bar_h = 26.0f;
-        const float main_content_h = app_height - status_bar_h - 10.0f; // Ruang pasti di atas status bar
+        const float top_margin = 6.0f;
+        const float gap_margin = 6.0f;
+        const float main_content_h = app_height - status_bar_h - top_margin - gap_margin;
 
-        float sidebar_width = 280.0f;
-        if (app_width < 800.0f) sidebar_width = 230.0f;
-        float right_panel_width = app_width - sidebar_width - 24.0f;
+        float avail_w = app_width - 16.0f;
+        float sidebar_width = (app_width < 800.0f) ? 230.0f : 270.0f;
+        float right_panel_width = avail_w - sidebar_width - 8.0f;
         if (right_panel_width < 280.0f) right_panel_width = 280.0f;
+
+        // Posisikan kursor awal tepat dengan margin 8px kiri, 6px atas
+        ImGui::SetCursorPos(ImVec2(8.0f, top_margin));
 
         // ================= 1. SIDEBAR KIRI (FULL HEIGHT DENGAN BATAS STATUS BAR) =================
         ImGui::BeginChild("SidebarPanel", ImVec2(sidebar_width, main_content_h), true, ImGuiWindowFlags_NoScrollbar);
@@ -2682,13 +2691,13 @@ int WINAPI WinMain
         ImGui::Spacing();
 
         // Hitung tinggi daftar percakapan secara dinamis agar Telemetri & Tombol Pengaturan selalu tampak sempurna tanpa scroll!
-        const float sidebar_header_h = 100.0f;
-        const float sidebar_footer_h = 158.0f; // Pas dengan kartu status hardware & tombol footer
+        const float sidebar_header_h = 92.0f;
+        const float sidebar_footer_h = 136.0f; // Pas dengan kartu status hardware & tombol footer
         float topics_h = main_content_h - sidebar_header_h - sidebar_footer_h;
-        if (topics_h < 60.0f) topics_h = 60.0f;
+        if (topics_h < 50.0f) topics_h = 50.0f;
 
-        // Daftar Percakapan / Topics (Scrollable)
-        ImGui::BeginChild("TopicsList", ImVec2(-1, topics_h), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+        // Daftar Percakapan / Topics (Auto-Scrollbar: Hanya muncul saat percakapan banyak!)
+        ImGui::BeginChild("TopicsList", ImVec2(-1, topics_h), false, 0);
         for (size_t t = 0; t < g_sessions.size(); t++) {
             bool selected = ((int)t == g_active_session_idx);
             ImGui::PushID((int)t);
@@ -3124,16 +3133,16 @@ int WINAPI WinMain
         } else {
             // B. CHAT CANVAS (Scrollable Area)
             float input_card_h = 0.0f;
-            if (g_has_init_image) input_card_h += 76.0f;
-            if (g_has_attached_doc) input_card_h += 48.0f;
+            if (g_has_init_image) input_card_h += 72.0f;
+            if (g_has_attached_doc) input_card_h += 46.0f;
             bool two_rows_options = (right_panel_width < 720.0f);
-            float options_bar_h = (g_selected_mode == 2 || g_selected_mode == 3) ? (two_rows_options ? 62.0f : 34.0f) : 34.0f;
-            float input_area_h = 52.0f + options_bar_h + input_card_h + 8.0f;
-            float chat_canvas_h = main_content_h - 40.0f - subbar_h - input_area_h - 8.0f;
-            if (chat_canvas_h < 100.0f) chat_canvas_h = 100.0f;
+            float options_bar_h = (g_selected_mode == 2 || g_selected_mode == 3) ? (two_rows_options ? 60.0f : 32.0f) : 32.0f;
+            float input_area_h = 46.0f + 6.0f + options_bar_h + input_card_h;
+            float chat_canvas_h = main_content_h - 42.0f - (subbar_h > 0.0f ? (subbar_h + 6.0f) : 0.0f) - input_area_h - 12.0f;
+            if (chat_canvas_h < 80.0f) chat_canvas_h = 80.0f;
 
-            ImGui::BeginChild("ChatCanvas", ImVec2(right_panel_width, chat_canvas_h), true,
-                ImGuiWindowFlags_AlwaysVerticalScrollbar);
+            // Auto-Scrollbar: Hanya muncul jika ada banyak pesan chat yang melebihi tinggi layar!
+            ImGui::BeginChild("ChatCanvas", ImVec2(right_panel_width, chat_canvas_h), true, 0);
 
         if (g_active_session_idx >= 0 && g_active_session_idx < (int)g_sessions.size()) {
             auto& cur_messages = g_sessions[g_active_session_idx].messages;
@@ -3472,10 +3481,10 @@ int WINAPI WinMain
 
         if (g_is_processing) {
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.25f, 0.30f, 0.40f, 1.0f));
-            ImGui::Button("Proses...", ImVec2(send_btn_w, 52));
+            ImGui::Button("Proses...", ImVec2(send_btn_w, 46));
             ImGui::PopStyleColor();
         } else {
-            if ((ImGui::Button("Kirim", ImVec2(send_btn_w, 52)) || enter_pressed) && (strlen(g_input_prompt) > 0 || g_has_attached_doc)) {
+            if ((ImGui::Button("Kirim", ImVec2(send_btn_w, 46)) || enter_pressed) && (strlen(g_input_prompt) > 0 || g_has_attached_doc)) {
                 std::string actual_prompt_to_send = g_input_prompt;
                 if (actual_prompt_to_send.empty()) {
                     actual_prompt_to_send = "Tolong baca, jelaskan ringkasan, dan analisis poin-poin penting dari isi dokumen ini secara terstruktur.";

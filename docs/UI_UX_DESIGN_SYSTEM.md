@@ -7,10 +7,11 @@ Dokumentasi resmi arsitektur antarmuka pengguna (*User Interface*) dan pengalama
 ## 🏛️ 1. Filosofi Desain: Zero-Collision & High-Aesthetic Utility
 
 > [!IMPORTANT]
-> **Prinsip Utama Tata Letak (Anti-Tabrak & Anti-Terpotong):**
-> 1. **Pemisahan Ruang Secara Matematika Murni**: Setiap zona layar (Header, Sidebar, Workspace, Ribbon Opsi, Status Bar) memiliki kuota tinggi dan lebar yang terisolasi secara hierarkis. Tidak ada elemen yang boleh mengandalkan asumsi koordinat kursor sembarangan.
-> 2. **Adaptive 2-Tier Control Ribbon**: Pada ukuran jendela sedang (<720px), kontrol studio foto otomatis beralih menjadi 2 baris rapi berkartu tanpa pernah meluap (*overflow*) atau menimpa status bar.
-> 3. **Penyelarasan Sentuh & Mouse Presisi 0-Padding**: Menghilangkan padding sentuh liar (`TouchExtraPadding = 0`) sehingga geometri komputasi Dear ImGui 100% konsisten dengan render GPU Direct3D 11.
+> **Prinsip Utama Tata Letak (Anti-Tabrak, Anti-Terpotong & Bebas Scroll Liar):**
+> 1. **Pemisahan Ruang Secara Matematika Murni**: Jendela utama (`RootWindow`) memiliki kuota ukuran presisi 1:1 terhadap client window (`WindowPadding = (0, 0)`, `WindowBorderSize = 0`). Seluruh ruang partisi (Header, Sidebar, Workspace, Ribbon Opsi, Status Bar) dihitung tepat hingga piksel terakhir tanpa kelebihan ruang yang memicu scrollbar window.
+> 2. **Peniadaan Scrollbar Liar & Global Shift**: Flag `ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse` dipasang pada root window dan sidebar, sehingga scrolling mouse tidak akan pernah menggeser layout aplikasi atau membuat status bar melompat.
+> 3. **Auto-Scrollbar Cerdas**: Container konten seperti `ChatCanvas`, `TopicsList`, dan `DashboardHub` menggunakan auto-scrollbar (hanya memunculkan batang scrollbar vertikal saat jumlah item meluap dari batas tinggi). Jika isi masih muat, area tampil bersih 100% tanpa garis scroll abu-abu.
+> 4. **Adaptive 2-Tier Control Ribbon & Uniform Input Height**: Pada ukuran jendela sedang (<720px), kontrol studio foto otomatis beralih menjadi 2 baris rapi berkartu. Kotak input multiline, tombol Prompt Pintar, dan tombol Kirim diselaraskan pada tinggi seragam (46px).
 
 ---
 
@@ -147,4 +148,4 @@ Tersedia melalui dropdown di Modal Pengaturan (`[⚙️ Pengaturan]` -> `Pengelo
 
 ---
 
-*Dokumen ini merupakan bagian dari standar arsitektur resmi AI Studio Native v1.5.1.*
+*Dokumen ini merupakan bagian dari standar arsitektur resmi AI Studio Native v1.5.3.*

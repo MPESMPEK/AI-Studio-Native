@@ -155,6 +155,21 @@ Semua catatan perubahan, perbaikan bug, penambahan fitur, dan perombakan arsitek
 
 ---
 
+## [v1.5.3] - 2026-10-26
+### 📐 Optimasi Sizing Presisi 1:1 & Eliminasi Scrollbar Liar (Perfect Fit, Zero Screen-Shift)
+- **Eliminasi Total Scrollbar Root Window (Zero Screen Jitter)**:
+  - Mengunci `RootWindow` dengan `WindowPadding = (0, 0)` dan mengaktifkan `ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse`.
+  - Meniadakan bug pergeseran layar global saat scroll mouse digunakan, memastikan seluruh antarmuka terkunci stabil dan kokoh pada posisinya.
+- **Partisi Geometri Matematika Murni (Zero Margin Leakage)**:
+  - Tinggi konten utama dihitung secara presisi: `main_content_h = app_height - 38px` dengan margin atas 6px, celah bawah 6px, dan Status Bar 26px duduk rata (*flush*) di dasar jendela.
+  - Perhitungan tinggi canvas chat dan topics list disinkronkan tepat hingga piksel terakhir, mencegah luapan konten (*overflow*).
+- **Auto-Scrollbar Cerdas pada ChatCanvas, TopicsList, & DashboardHub**:
+  - Menghapus flag paksa `AlwaysVerticalScrollbar`. Batang gulir kini hanya muncul secara halus dan dinamis ketika pesan obrolan atau daftar topik benar-benar melebihi area pandang. Saat item sedikit, area tampak bersih dan estetik tanpa garis scrollbar abu-abu yang mengganggu.
+- **Penyelarasan Tinggi Kontrol Input Bar**:
+  - Menyamakan tinggi tombol `[Kirim]` (46px) dengan kotak input prompt teks multiline dan tombol `[✨ Prompt Pintar]` / `[🎙️ Bicara]` (46px), menciptakan deretan kontrol yang rata dan proporsional.
+
+---
+
 ## [v1.5.2] - 2026-10-26
 ### 🎨 Peningkatan UI/UX (Aksesibilitas Tombol Pengaturan Tanpa Perlu Scroll)
 - **Tombol Pintas ⚙️ Pengaturan di Top Navbar (Pojok Kanan Atas)**:
