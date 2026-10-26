@@ -1,6 +1,6 @@
 @echo off
 set CXX=w64devkit\bin\g++.exe
-set CFLAGS=-O3 -mavx2 -mfma -fopenmp -DSTATIC_ENGINE_CORE -I"cpp_core\include" -I"cpp_core\imgui"
+set CFLAGS=-O3 -mavx2 -mfma -fopenmp -DSTATIC_ENGINE_CORE -std=c++17 -I"cpp_core\include" -I"cpp_core\imgui"
 
 if not exist "cpp_core\obj" mkdir "cpp_core\obj"
 
