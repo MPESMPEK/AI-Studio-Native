@@ -39,7 +39,10 @@ Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
 
-# 6. File Sementara
+# 6. File Sementara & Arsip Distribusi
 *.tmp
 *.bak
+*.zip
+dist-windows/
+dist-android/
 scratch/
