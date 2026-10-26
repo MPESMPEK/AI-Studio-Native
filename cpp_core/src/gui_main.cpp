@@ -81,11 +81,11 @@ static bool g_use_fast_vae = true; // Gunakan TAESD (~2 detik vs 61 detik di CPU
 static bool g_turbo_mode = false;  // Mode Turbo LCM 4-Step (Off secara default untuk foto DSLR 20-step paling tajam)
 static bool g_use_realism_lora = true; // LoRA Detail Kulit & Realisme Alami (add_detail)
 static float g_realism_lora_strength = 0.75f;
-static int g_prompt_assist_mode = 0; // 0: Prompt Asli Langsung, 1: Koreksi & Rapikan Saja, 2: Kembangkan Cerdas (AI)
+static int g_prompt_assist_mode = 0; // 0: Prompt Asli (Raw), 1: Koreksi & Rapikan Saja, 2: Auto Kembangkan (AI)
 static const char* g_prompt_assist_names[] = {
-    "⚡ Prompt Asli Langsung",
-    "✍️ Koreksi & Rapikan",
-    "✨ Kembangkan Cerdas (AI)"
+    "Prompt Asli (Raw)",
+    "Koreksi & Rapikan",
+    "Auto Kembangkan (AI)"
 };
 static bool g_smart_prompt_auto = false; // backward-compat flag
 static std::atomic<bool> g_is_optimizing_prompt(false);
@@ -4181,14 +4181,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // ------------------ OPSI KONTEKSTUAL BAWAH ------------------
         if (g_selected_mode == 2 || g_selected_mode == 3) {
             // MODE DIFUSI FOTO / NSFW
-            ImGui::SetNextItemWidth(140.0f);
+            ImGui::SetNextItemWidth(160.0f);
             ImGui::Combo("##PromptAssistMode", &g_prompt_assist_mode, g_prompt_assist_names, IM_ARRAYSIZE(g_prompt_assist_names));
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip(
                     "Mode Penanganan Prompt AI:\n\n"
-                    "- ⚡ Prompt Asli Langsung: AI mengeksekusi 100%% persis apa yang Anda ketik tanpa penambahan kata otomatis sama sekali.\n"
-                    "- ✍️ Koreksi & Rapikan: Menerjemahkan bahasa Indonesia ke Inggris dan membetulkan ejaan secara setia.\n"
-                    "- ✨ Kembangkan Cerdas: Mengembangkan ide singkat dengan pencahayaan dan tekstur fotografi realistis."
+                    "- Prompt Asli (Raw): AI mengeksekusi 100%% persis dari apa yang Anda ketik tanpa penambahan kata/konsep otomatis sama sekali.\n"
+                    "- Koreksi & Rapikan: Menerjemahkan bahasa Indonesia ke Inggris dan membetulkan ejaan secara setia tanpa menambah objek liar.\n"
+                    "- Auto Kembangkan (AI): AI otomatis memperkaya ide dengan detail fotografi, pencahayaan, dan estetika realistis."
                 );
             }
 
