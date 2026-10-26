@@ -25,6 +25,7 @@
 #include "../imgui/imgui_impl_win32.h"
 #include "../imgui/imgui_impl_dx11.h"
 #include "../include/engine_core.h"
+#include "../include/memory_manager.h"
 
 // Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -3613,6 +3614,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     );
                 }
 
+                                if (ImGui::CollapsingHeader("🧹 Pengelolaan & Optimasi Memori (RAM / VRAM)", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    float currentRAM_MB = (float)MemoryManager::Get().GetCurrentWorkingSetBytes() / (1024.0f * 1024.0f);
+                    float peakRAM_MB = (float)MemoryManager::Get().GetPeakWorkingSetBytes() / (1024.0f * 1024.0f);
+
+                    ImGui::Text("Penggunaan RAM Fisik:");
+                    ImGui::SameLine();
+                    ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.4f, 1.0f), "%.1f MB (Puncak: %.1f MB)", currentRAM_MB, peakRAM_MB);
+
+                    ImGui::Text("Status Buffer:");
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("%s", MemoryManager::Get().GetLastStatusMessage().c_str());
+
+                    ImGui::Spacing();
+                    if (MemoryManager::Get().IsPurging()) {
+                        ImGui::BeginDisabled();
+                        ImGui::Button("⏳ Sedang Membersihkan Memori...", ImVec2(-1, 34));
+                        ImGui::EndDisabled();
+                    } else {
+                        if (ImGui::Button("🧹 Bersihkan RAM & VRAM Sekarang (Purge All)", ImVec2(-1, 34))) {
+                            MemoryManager::Get().PurgeAllAsync();
+                        }
+                        if (ImGui::IsItemHovered()) {
+                            ImGui::SetTooltip("Melepas seluruh buffer tekstur GPU D3D11 yang tidak aktif, memadatkan working set proses, dan mengembalikan RAM fisik ke Windows secara instan.");
+                        }
+                    }
+                }
+
                 ImGui::Separator();
                 if (ImGui::Button("Simpan & Tutup Pengaturan", ImVec2(-1, 38))) {
                     g_show_settings = false;
@@ -3710,6 +3738,7 @@ bool CreateDeviceD3D(HWND hWnd) {
         return false;
 
     CreateRenderTarget();
+    MemoryManager::Get().Initialize(g_pd3dDevice, g_pd3dDeviceContext);
     return true;
 }
 
