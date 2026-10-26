@@ -193,6 +193,16 @@ void ScanModelsDirectory() {
                         m.desc_plus = "Akselerasi Kilat: Menghasilkan gambar hanya dalam 4 steps denoising (~3-5 detik di CPU).";
                         m.desc_minus = "Gaya visual memiliki sentuhan semi-ilustratif/artistik 2.5D, tidak semurni DSLR CyberRealistic.";
                         m.rec = "Gunakan saat butuh pembuatan gambar instan, thumbnail ide cepat, atau seni konsep artistik.";
+                    } else if (lower_f.find("ghostmix") != std::string::npos) {
+                        m.display_name = "GhostMix V2.0 (Anime-Realistis 2.5D Uncensored)";
+                        m.desc_plus = "Spesialis Anime-Realistis 2.5D & NSFW Uncensored: Memadukan estetika karakter anime cantik dengan tekstur kulit nyata, anatomi tubuh proporsional, dan pencahayaan 3D mendalam. Sudah termasuk Baked VAE.";
+                        m.desc_minus = "Bukan foto kamera jurnalis murni, melainkan perpaduan anime x fotorealistis.";
+                        m.rec = "PILIHAN UTAMA untuk NSFW anime yang tampak hidup, sensual, dan beranatomi nyata.";
+                    } else if (lower_f.find("chilloutmix") != std::string::npos) {
+                        m.display_name = "ChilloutMix Ni (Foto Realistis Asia & Ringan)";
+                        m.desc_plus = "Model legendaris untuk foto wanita Asia fotorealistis dan pose NSFW intim. Sangat tajam dan toleran pada resolusi sedang/rendah (384x512).";
+                        m.desc_minus = "Karakter wajah konsisten bergaya kecantikan Asia Timur / idol.";
+                        m.rec = "Sangat direkomendasikan untuk potret sensual wanita Asia dengan kulit mulus dan pencahayaan studio.";
                     } else {
                         // Model difusi kustom (.safetensors / .gguf)
                         m.is_custom = true;
