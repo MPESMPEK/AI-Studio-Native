@@ -100,13 +100,17 @@ static bool g_show_settings = false;
 int g_num_threads = 4;
 static int g_image_steps = 20;
 static float g_cfg_scale = 7.0f;
-static int g_resolution_idx = 1; // Bawaan 384x384 (Cepat Ringan untuk CPU)
+static int g_resolution_idx = 1; // Bawaan 256x384 (Potret ~250p Super Kilat)
 static const char* g_resolutions[] = {
-    "Rasio: 256x256 (Super Kilat CPU ~4x Cepat)",
-    "Rasio: 384x384 (Cepat Ringan CPU ~2x Cepat)",
-    "Rasio: 512x512 (Standar Kotak 1:1)",
-    "Rasio: 512x768 (Potret Vertikal)",
-    "Rasio: 768x512 (Landscape Horisontal)"
+    "250p: 256 x 256 (Kotak 1:1 ~4x Cepat)",
+    "250p: 256 x 384 (Potret Vertikal ~3.5x Cepat)",
+    "250p: 384 x 256 (Lanskap Horisontal ~3.5x Cepat)",
+    "380p: 384 x 384 (Kotak 1:1 ~2x Cepat)",
+    "380p: 384 x 512 (Potret Vertikal ~1.8x Cepat)",
+    "380p: 512 x 384 (Lanskap Horisontal ~1.8x Cepat)",
+    "512p: 512 x 512 (Standar Kotak 1:1 SD1.5)",
+    "512p: 512 x 768 (Standar Potret Vertikal)",
+    "512p: 768 x 512 (Standar Lanskap Horisontal)"
 };
 static int g_framing_idx = 0; // 0=Auto, 1=Wajah (85mm), 2=Setengah Badan (50mm), 3=Seluruh Badan (35mm)
 static const char* g_framing_names[] = {
@@ -1095,11 +1099,15 @@ void RunInferenceWorker(std::string prompt, int mode, int model_idx, int photo_i
 
         // Resolusi sepenuhnya mematuhi pilihan pengguna (TIDAK ADA override otomatis diam-diam)
         if (g_resolution_idx == 0) { out_w = 256; out_h = 256; }
-        else if (g_resolution_idx == 1) { out_w = 384; out_h = 384; }
-        else if (g_resolution_idx == 2) { out_w = 512; out_h = 512; }
-        else if (g_resolution_idx == 3) { out_w = 512; out_h = 768; }
-        else if (g_resolution_idx == 4) { out_w = 768; out_h = 512; }
-        else { out_w = 384; out_h = 384; }
+        else if (g_resolution_idx == 1) { out_w = 256; out_h = 384; }
+        else if (g_resolution_idx == 2) { out_w = 384; out_h = 256; }
+        else if (g_resolution_idx == 3) { out_w = 384; out_h = 384; }
+        else if (g_resolution_idx == 4) { out_w = 384; out_h = 512; }
+        else if (g_resolution_idx == 5) { out_w = 512; out_h = 384; }
+        else if (g_resolution_idx == 6) { out_w = 512; out_h = 512; }
+        else if (g_resolution_idx == 7) { out_w = 512; out_h = 768; }
+        else if (g_resolution_idx == 8) { out_w = 768; out_h = 512; }
+        else { out_w = 256; out_h = 384; }
 
         actual_steps = (steps > 0) ? steps : 20;
         float actual_cfg = cfg;
@@ -2999,11 +3007,15 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
                 ImGui::Spacing();
                 ImGui::Text("Rasio Resolusi:");
                 static const char* s_res_labels[] = {
-                    "256 x 256 (Super Kilat CPU ~4x Cepat)",
-                    "384 x 384 (Cepat Ringan CPU ~2x Cepat)",
-                    "512 x 512 (Standar Kotak 1:1)",
-                    "512 x 768 (Potret Vertikal)",
-                    "768 x 512 (Landscape Horisontal)"
+                    "250p: 256 x 256 (Kotak 1:1 ~4x Cepat)",
+                    "250p: 256 x 384 (Potret Vertikal ~3.5x Cepat)",
+                    "250p: 384 x 256 (Lanskap Horisontal ~3.5x Cepat)",
+                    "380p: 384 x 384 (Kotak 1:1 ~2x Cepat)",
+                    "380p: 384 x 512 (Potret Vertikal ~1.8x Cepat)",
+                    "380p: 512 x 384 (Lanskap Horisontal ~1.8x Cepat)",
+                    "512p: 512 x 512 (Standar Kotak 1:1 SD1.5)",
+                    "512p: 512 x 768 (Standar Potret Vertikal)",
+                    "512p: 768 x 512 (Standar Lanskap Horisontal)"
                 };
                 ImGui::SetNextItemWidth(-1);
                 ImGui::Combo("##ResCombo", &node.res_idx, s_res_labels, IM_ARRAYSIZE(s_res_labels));
