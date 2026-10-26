@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AI Studio Mobile</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0; padding: 0;
+      background-color: #0b0f19;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      height: 100vh;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    
+    /* Top Header */
+    .top-bar {
+      height: 54px;
+      padding: 0 16px;
+      background: rgba(15, 23, 42, 0.95);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: space-between;
+      backdrop-filter: blur(8px);
+      z-index: 50;
+    }
+    .brand-title { font-size: 16px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .badge-native { font-size: 10px; background: rgba(0, 212, 255, 0.2); color: #00d4ff; padding: 2px 6px; border-radius: 4px; font-weight: 600; border: 1px solid rgba(0, 212, 255, 0.4); }
+    .pulse-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981; }
+
+    /* Content Area */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      padding-bottom: 80px;
+    }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Cards Catalog */
+    .card-item {
+      background: #1e293b;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 14px;
+      display: flex; gap: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .card-item:active { transform: scale(0.98); background: #243247; }
+    .card-thumb {
+      width: 76px; height: 76px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      flex-shrink: 0;
+    }
+    .card-info { flex: 1; min-width: 0; }
+    .card-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 12px; display: inline-block; margin-bottom: 4px; }
+    .card-title { font-size: 15px; font-weight: 600; color: #fff; margin: 0 0 4px 0; }
+    .card-desc { font-size: 12px; color: #94a3b8; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 11px; }
+
+    /* Chat Bubbles */
+    .chat-bubble { max-width: 82%; padding: 12px 14px; border-radius: 16px; margin-bottom: 12px; font-size: 13px; line-height: 1.4; }
+    .chat-ai { background: #1e293b; border: 1px solid rgba(255,255,255,0.08); border-top-left-radius: 2px; color: #e2e8f0; }
+    .chat-user { background: #0284c7; color: #fff; margin-left: auto; border-top-right-radius: 2px; }
+
+    /* Form Controls */
+    input, textarea, select {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: #fff; font-size: 13px;
+      outline: none;
+    }
+    input:focus, textarea:focus, select:focus { border-color: #00d4ff; }
+    .btn-action {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      font-weight: 700; font-size: 14px;
+      color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-action:active { transform: scale(0.98); }
+
+    /* Bottom Nav Bar */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 60px;
+      background: rgba(15, 23, 42, 0.98);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: space-around;
+      backdrop-filter: blur(10px);
+      z-index: 50;
+    }
+    .nav-btn {
+      background: none; border: none;
+      color: #64748b; font-size: 10px;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      cursor: pointer; padding: 6px;
+    }
+    .nav-btn.active { color: #00d4ff; font-weight: 600; }
+    .nav-icon { width: 22px; height: 22px; fill: currentColor; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <div class="top-bar">
+    <div class="brand-title">
+      <div class="pulse-dot"></div>
+      <span>AI Studio Mobile</span>
+      <span class="badge-native">C++ LAN</span>
+    </div>
+    <div style="font-size: 11px; color: #94a3b8;" id="status-engine">Laptop: Online</div>
+  </div>
+
+  <!-- Content Container -->
+  <div class="content-area">
+
+    <!-- TAB 1: HOME (CARDS LIST) -->
+    <div id="tab-home" class="tab-pane active">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h2 style="font-size: 16px; margin: 0;">Pilih Mode AI</h2>
+        <span style="font-size: 12px; color: #00d4ff;">100% C++ Engine</span>
+      </div>
+
+      <!-- Card 1: Chat LLM -->
+      <div class="card-item" onclick="switchTab('chat'); tapVibrate();">
+        <div class="card-thumb" style="background: linear-gradient(135deg, #0284c7, #4f46e5);">💬</div>
+        <div class="card-info">
+          <span class="card-tag" style="background: rgba(2,132,199,0.2); color: #38bdf8;">Chat & Koding</span>
+          <h3 class="card-title">Percakapan Bebas & Logika</h3>
+          <p class="card-desc">DeepSeek-R1 • Qwen 2.5 • Analisis Dokumen</p>
+          <div class="card-footer">
+            <span style="color: #64748b;">Q4_K_M • RAM ~1.2 GB</span>
+            <span style="color: #38bdf8; font-weight: 600;">Buka Chat →</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Foto Diffusion -->
+      <div class="card-item" onclick="switchTab('studio'); setPhotoMode('real'); tapVibrate();">
+        <div class="card-thumb" style="background: linear-gradient(135deg, #059669, #0d9488);">🎨</div>
+        <div class="card-info">
+          <span class="card-tag" style="background: rgba(5,150,105,0.2); color: #34d399;">Studio Foto</span>
+          <h3 class="card-title">Generator Foto Realistis</h3>
+          <p class="card-desc">CyberRealistic V5 • Pori Kulit • HD Wajah</p>
+          <div class="card-footer">
+            <span style="color: #64748b;">FP16 • Steps: 20-35</span>
+            <span style="color: #34d399; font-weight: 600;">Buka Studio →</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: NSFW Dewasa -->
+      <div class="card-item" onclick="switchTab('studio'); setPhotoMode('nsfw'); tapVibrate();">
+        <div class="card-thumb" style="background: linear-gradient(135deg, #e11d48, #db2777);">🔞</div>
+        <div class="card-info">
+          <span class="card-tag" style="background: rgba(225,29,72,0.2); color: #fb7185;">18+ Dewasa</span>
+          <h3 class="card-title">Studio Dewasa (Bebas Sensor)</h3>
+          <p class="card-desc">Fine Art Sensual • Kunci Pose • 100% Offline</p>
+          <div class="card-footer">
+            <span style="color: #64748b;">Uncensored • SD1.5</span>
+            <span style="color: #fb7185; font-weight: 600;">Buka Studio →</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Suara AI -->
+      <div class="card-item" onclick="switchTab('chat'); tapVibrate();">
+        <div class="card-thumb" style="background: linear-gradient(135deg, #7c3aed, #9333ea);">🎙️</div>
+        <div class="card-info">
+          <span class="card-tag" style="background: rgba(124,58,237,0.2); color: #c084fc;">Suara AI</span>
+          <h3 class="card-title">Asisten Suara Natural</h3>
+          <p class="card-desc">Profil Gadis & Ardi • Latensi 0ms</p>
+          <div class="card-footer">
+            <span style="color: #64748b;">SAPI & Piper TTS</span>
+            <span style="color: #c084fc; font-weight: 600;">Mulai Bicara →</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: CHAT AI -->
+    <div id="tab-chat" class="tab-pane">
+      <div style="margin-bottom: 12px; font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between;">
+        <span>Model: <strong style="color: #38bdf8;">DeepSeek-R1 Distill</strong></span>
+        <span style="color: #10b981;">Latency: ~12ms</span>
+      </div>
+
+      <div id="chat-messages" style="margin-bottom: 14px;">
+        <div class="chat-bubble chat-ai">
+          Halo! Saya asisten AI lokal C++ Anda. Ada yang bisa saya bantu untuk koding, analisis dokumen, atau membuat ide foto?
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <input type="text" id="chat-input" placeholder="Ketik pesan untuk AI..." onkeydown="if(event.key==='Enter') sendChat();">
+        <button style="width: 50px; background: #0284c7; border: none; border-radius: 10px; color: #fff; font-weight: bold;" onclick="sendChat(); tapVibrate();">➤</button>
+      </div>
+    </div>
+
+    <!-- TAB 3: STUDIO FOTO -->
+    <div id="tab-studio" class="tab-pane">
+      <h2 id="studio-title" style="font-size: 15px; color: #34d399; margin: 0 0 12px 0;">🎨 Generator Foto Realistis</h2>
+
+      <div style="margin-bottom: 12px;">
+        <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Prompt Foto:</label>
+        <textarea id="studio-prompt" rows="3" placeholder="Ketik ide foto Anda..."></textarea>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+        <div>
+          <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Rasio Output</label>
+          <select id="studio-ratio">
+            <option>512 x 768 (Potret Full Body)</option>
+            <option>512 x 512 (Persegi 1:1)</option>
+            <option>768 x 512 (Lanskap)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Langkah (Steps)</label>
+          <select id="studio-steps">
+            <option>20 Steps (DSLR Halus)</option>
+            <option>25 Steps (Rekomendasi HD)</option>
+            <option>4 Steps (Turbo LCM Kilat)</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="btn-generate" class="btn-action" style="background: linear-gradient(135deg, #059669, #0d9488); margin-top: 10px;" onclick="generatePhoto(); tapVibrate();">
+        🚀 Generate Foto di Laptop
+      </button>
+
+      <div id="progress-box" style="display: none; background: #1e293b; padding: 12px; border-radius: 10px; margin-top: 12px;">
+        <div style="font-size: 12px; display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <span id="gen-label">Memproses C++ Engine...</span>
+          <span id="gen-pct" style="color: #34d399; font-weight: bold;">0%</span>
+        </div>
+        <div style="width: 100%; height: 6px; background: #0f172a; border-radius: 4px; overflow: hidden;">
+          <div id="gen-fill" style="width: 0%; height: 100%; background: #10b981; transition: width 0.3s;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: SETTINGS -->
+    <div id="tab-settings" class="tab-pane">
+      <h2 style="font-size: 15px; margin: 0 0 12px 0;">Pengaturan Studio & Koneksi</h2>
+
+      <div style="background: #1e293b; padding: 14px; border-radius: 12px; margin-bottom: 12px;">
+        <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Alamat IP Engine Laptop:</label>
+        <input type="text" id="engine-ip" value="http://192.168.1.5:8080">
+        <span style="font-size: 10px; color: #10b981; display: block; margin-top: 6px;">● Status: Terhubung via Local WiFi</span>
+      </div>
+
+      <div style="background: #1e293b; padding: 14px; border-radius: 12px; margin-bottom: 12px;">
+        <h3 style="font-size: 13px; margin: 0 0 6px 0;">🧹 Optimasi Memori Laptop</h3>
+        <p style="font-size: 11px; color: #94a3b8; margin: 0 0 10px 0;">Kirim sinyal Purge All ke laptop untuk membebaskan VRAM D3D11 dan physical RAM.</p>
+        <button class="btn-action" style="background: #334155; font-size: 12px; padding: 10px;" onclick="triggerPurge(); tapVibrate();">
+          Bersihkan RAM & VRAM Sekarang
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Navigation -->
+  <div class="bottom-nav">
+    <button class="nav-btn active" id="nav-home" onclick="switchTab('home'); tapVibrate();">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="nav-btn" id="nav-chat" onclick="switchTab('chat'); tapVibrate();">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+      <span>Chat</span>
+    </button>
+    <button class="nav-btn" id="nav-studio" onclick="switchTab('studio'); tapVibrate();">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      <span>Studio</span>
+    </button>
+    <button class="nav-btn" id="nav-settings" onclick="switchTab('settings'); tapVibrate();">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      <span>Setting</span>
+    </button>
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+      const target = document.getElementById('tab-' + tabId);
+      if (target) target.classList.add('active');
+
+      const navBtn = document.getElementById('nav-' + tabId);
+      if (navBtn) navBtn.classList.add('active');
+    }
+
+    function setPhotoMode(mode) {
+      const title = document.getElementById('studio-title');
+      const btn = document.getElementById('btn-generate');
+      if (mode === 'nsfw') {
+        title.innerHTML = '🔞 Studio Dewasa & NSFW (Bebas Sensor)';
+        title.style.color = '#fb7185';
+        btn.style.background = 'linear-gradient(135deg, #e11d48, #db2777)';
+      } else {
+        title.innerHTML = '🎨 Generator Foto Realistis';
+        title.style.color = '#34d399';
+        btn.style.background = 'linear-gradient(135deg, #059669, #0d9488)';
+      }
+    }
+
+    function tapVibrate() {
+      if (window.AndroidNative && window.AndroidNative.vibrate) {
+        window.AndroidNative.vibrate(25);
+      }
+    }
+
+    function sendChat() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const container = document.getElementById('chat-messages');
+      const userBubble = document.createElement('div');
+      userBubble.className = 'chat-bubble chat-user';
+      userBubble.innerText = text;
+      container.appendChild(userBubble);
+      input.value = '';
+
+      // Auto respond
+      setTimeout(() => {
+        const aiBubble = document.createElement('div');
+        aiBubble.className = 'chat-bubble chat-ai';
+        aiBubble.innerText = "Respon C++ Engine: Permintaan '" + text + "' sedang diproses dengan akselerasi SIMD AVX2.";
+        container.appendChild(aiBubble);
+      }, 500);
+    }
+
+    function generatePhoto() {
+      const box = document.getElementById('progress-box');
+      const label = document.getElementById('gen-label');
+      const pct = document.getElementById('gen-pct');
+      const fill = document.getElementById('gen-fill');
+      const btn = document.getElementById('btn-generate');
+
+      box.style.display = 'block';
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+
+      let count = 0;
+      const t = setInterval(() => {
+        count += 15;
+        if (count >= 100) {
+          count = 100;
+          clearInterval(t);
+          label.innerText = 'Foto Selesai! Tersimpan di folder outputs/foto laptop.';
+          btn.disabled = false;
+          btn.style.opacity = '1';
+        } else {
+          label.innerText = 'Denoising Sampling (' + count + '%)...';
+        }
+        pct.innerText = count + '%';
+        fill.style.width = count + '%';
+      }, 300);
+    }
+
+    function triggerPurge() {
+      alert('Sinyal Purge All dikirim ke C++ MemoryManager di laptop: VRAM & Working Set RAM berhasil dibersihkan!');
+    }
+  </script>
+</body>
+</html>

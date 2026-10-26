@@ -155,6 +155,18 @@ Semua catatan perubahan, perbaikan bug, penambahan fitur, dan perombakan arsitek
 
 ---
 
+## [v1.4.0] - 2026-10-26
+### ✨ Fitur Baru (Ekspansi Mobile Android & CI/CD GitHub Actions)
+- **Proyek Mobile Android Mandiri (ndroid/)**:
+  - Membangun struktur proyek Android Gradle lengkap (com.mpesmpek.aistudio) berbasis Android SDK 34.
+  - Mengintegrasikan antarmuka visual mobile responsif (berbasis desain modern Uizard) di ssets/index.html dengan navigasi tab: *Home*, *Chat LLM*, *Studio Foto*, dan *Pengaturan LAN*.
+  - Native Activity MainActivity.java dengan hardware-accelerated WebView, permission internet, dan bridge JavaScript native AndroidNative untuk feedback getar (*haptic vibration*).
+- **Otomasi Build Cloud GitHub Actions (.github/workflows/build-android.yml)**:
+  - Konfigurasi alur kerja CI/CD cloud Ubuntu Runner dengan JDK 17, Android SDK, dan Gradle.
+  - Otomatis mengompilasi release APK dan debug APK saat push ke GitHub, serta mengunggah file .apk siap pasang ke GitHub Actions Artifacts.
+
+---
+
 ## [v1.3.1] - 2026-10-26
 ### 🐛 Bug Fix
 - **Perbaikan Skrip Otomasi Batch (`tools/`)**:
