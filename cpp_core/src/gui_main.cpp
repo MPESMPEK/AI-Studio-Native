@@ -2643,19 +2643,16 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
         );
     };
     auto GetNodeSize = [&](const DynamicStudioNode& n) -> ImVec2 {
-        return ImVec2(
-            n.base_size.x * s_canvas_zoom,
-            n.base_size.y * s_canvas_zoom
-        );
+        // Ukuran kotak node tetap tajam & proporsional (konten dalam kotak tidak terdistorsi zoom)
+        return n.base_size;
     };
 
     // Helper Fungsi Render Pin Lingkaran
     auto DrawPinCircle = [&](ImVec2 pos, ImU32 col, const char* name, bool is_left) {
-        float r = 5.0f * s_canvas_zoom;
-        if (r < 3.0f) r = 3.0f;
+        float r = 5.0f;
         draw_list->AddCircleFilled(pos, r, col);
         draw_list->AddCircle(pos, r, IM_COL32_WHITE, 0, 1.2f);
-        if (name && strlen(name) > 0 && s_canvas_zoom >= 0.70f) {
+        if (name && strlen(name) > 0) {
             ImVec2 nsz = ImGui::CalcTextSize(name);
             ImVec2 tpos = is_left ? ImVec2(pos.x - nsz.x - 6.0f, pos.y - nsz.y * 0.5f) : ImVec2(pos.x + 6.0f, pos.y - nsz.y * 0.5f);
             draw_list->AddText(tpos, ImColor(200, 220, 245, 200), name);
@@ -2685,30 +2682,30 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
 
     // 1. Model -> LoRA(s) -> Sampler
     if (pModel) {
-        ImVec2 model_out(GetNodeScreenPos(*pModel).x + GetNodeSize(*pModel).x, GetNodeScreenPos(*pModel).y + 36.0f * s_canvas_zoom);
+        ImVec2 model_out(GetNodeScreenPos(*pModel).x + GetNodeSize(*pModel).x, GetNodeScreenPos(*pModel).y + 36.0f);
         DrawPinCircle(model_out, ImColor(168, 85, 247), "MODEL", false);
 
         if (!pLoras.empty()) {
-            ImVec2 first_lora_in(GetNodeScreenPos(*pLoras[0]).x, GetNodeScreenPos(*pLoras[0]).y + 36.0f * s_canvas_zoom);
+            ImVec2 first_lora_in(GetNodeScreenPos(*pLoras[0]).x, GetNodeScreenPos(*pLoras[0]).y + 36.0f);
             DrawGlowingBezier(draw_list, model_out, first_lora_in, ImColor(168, 85, 247));
             DrawPinCircle(first_lora_in, ImColor(168, 85, 247), "", true);
 
             for (size_t i = 0; i < pLoras.size(); i++) {
-                ImVec2 l_out(GetNodeScreenPos(*pLoras[i]).x + GetNodeSize(*pLoras[i]).x, GetNodeScreenPos(*pLoras[i]).y + 36.0f * s_canvas_zoom);
+                ImVec2 l_out(GetNodeScreenPos(*pLoras[i]).x + GetNodeSize(*pLoras[i]).x, GetNodeScreenPos(*pLoras[i]).y + 36.0f);
                 DrawPinCircle(l_out, ImColor(245, 158, 11), "MODEL", false);
 
                 if (i + 1 < pLoras.size()) {
-                    ImVec2 next_lora_in(GetNodeScreenPos(*pLoras[i + 1]).x, GetNodeScreenPos(*pLoras[i + 1]).y + 36.0f * s_canvas_zoom);
+                    ImVec2 next_lora_in(GetNodeScreenPos(*pLoras[i + 1]).x, GetNodeScreenPos(*pLoras[i + 1]).y + 36.0f);
                     DrawGlowingBezier(draw_list, l_out, next_lora_in, ImColor(245, 158, 11));
                     DrawPinCircle(next_lora_in, ImColor(245, 158, 11), "", true);
                 } else if (pSampler) {
-                    ImVec2 sampler_m_in(GetNodeScreenPos(*pSampler).x, GetNodeScreenPos(*pSampler).y + 42.0f * s_canvas_zoom);
+                    ImVec2 sampler_m_in(GetNodeScreenPos(*pSampler).x, GetNodeScreenPos(*pSampler).y + 42.0f);
                     DrawGlowingBezier(draw_list, l_out, sampler_m_in, ImColor(245, 158, 11));
                     DrawPinCircle(sampler_m_in, ImColor(245, 158, 11), "", true);
                 }
             }
         } else if (pSampler) {
-            ImVec2 sampler_m_in(GetNodeScreenPos(*pSampler).x, GetNodeScreenPos(*pSampler).y + 42.0f * s_canvas_zoom);
+            ImVec2 sampler_m_in(GetNodeScreenPos(*pSampler).x, GetNodeScreenPos(*pSampler).y + 42.0f);
             DrawGlowingBezier(draw_list, model_out, sampler_m_in, ImColor(168, 85, 247));
             DrawPinCircle(sampler_m_in, ImColor(168, 85, 247), "", true);
         }
@@ -2716,8 +2713,8 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
 
     // 2. Prompt -> Sampler (COND)
     if (pPrompt && pSampler) {
-        ImVec2 prompt_out(GetNodeScreenPos(*pPrompt).x + GetNodeSize(*pPrompt).x, GetNodeScreenPos(*pPrompt).y + 44.0f * s_canvas_zoom);
-        ImVec2 sampler_pos_in(GetNodeScreenPos(*pSampler).x, GetNodeScreenPos(*pSampler).y + 68.0f * s_canvas_zoom);
+        ImVec2 prompt_out(GetNodeScreenPos(*pPrompt).x + GetNodeSize(*pPrompt).x, GetNodeScreenPos(*pPrompt).y + 44.0f);
+        ImVec2 sampler_pos_in(GetNodeScreenPos(*pSampler).x, GetNodeScreenPos(*pSampler).y + 68.0f);
         DrawGlowingBezier(draw_list, prompt_out, sampler_pos_in, ImColor(56, 189, 248));
         DrawPinCircle(prompt_out, ImColor(56, 189, 248), "COND", false);
         DrawPinCircle(sampler_pos_in, ImColor(56, 189, 248), "", true);
@@ -2725,8 +2722,8 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
 
     // 3. ControlNet -> Sampler (CONTROL)
     if (pCnet && pCnet->cnet_enabled && pSampler) {
-        ImVec2 cnet_out(GetNodeScreenPos(*pCnet).x + GetNodeSize(*pCnet).x, GetNodeScreenPos(*pCnet).y + 36.0f * s_canvas_zoom);
-        ImVec2 sampler_ctrl_in(GetNodeScreenPos(*pSampler).x, GetNodeScreenPos(*pSampler).y + 94.0f * s_canvas_zoom);
+        ImVec2 cnet_out(GetNodeScreenPos(*pCnet).x + GetNodeSize(*pCnet).x, GetNodeScreenPos(*pCnet).y + 36.0f);
+        ImVec2 sampler_ctrl_in(GetNodeScreenPos(*pSampler).x, GetNodeScreenPos(*pSampler).y + 94.0f);
         DrawGlowingBezier(draw_list, cnet_out, sampler_ctrl_in, ImColor(244, 63, 94));
         DrawPinCircle(cnet_out, ImColor(244, 63, 94), "CONTROL", false);
         DrawPinCircle(sampler_ctrl_in, ImColor(244, 63, 94), "", true);
@@ -2734,8 +2731,8 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
 
     // 4. Sampler -> VAE (LATENT)
     if (pSampler && pVae) {
-        ImVec2 sampler_lat_out(GetNodeScreenPos(*pSampler).x + GetNodeSize(*pSampler).x, GetNodeScreenPos(*pSampler).y + 48.0f * s_canvas_zoom);
-        ImVec2 vae_lat_in(GetNodeScreenPos(*pVae).x, GetNodeScreenPos(*pVae).y + 36.0f * s_canvas_zoom);
+        ImVec2 sampler_lat_out(GetNodeScreenPos(*pSampler).x + GetNodeSize(*pSampler).x, GetNodeScreenPos(*pSampler).y + 48.0f);
+        ImVec2 vae_lat_in(GetNodeScreenPos(*pVae).x, GetNodeScreenPos(*pVae).y + 36.0f);
         DrawGlowingBezier(draw_list, sampler_lat_out, vae_lat_in, ImColor(16, 185, 129));
         DrawPinCircle(sampler_lat_out, ImColor(16, 185, 129), "LATENT", false);
         DrawPinCircle(vae_lat_in, ImColor(16, 185, 129), "", true);
@@ -2743,8 +2740,8 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
 
     // 5. VAE -> Preview (IMAGE)
     if (pVae && pPreview) {
-        ImVec2 vae_img_out(GetNodeScreenPos(*pVae).x + GetNodeSize(*pVae).x, GetNodeScreenPos(*pVae).y + 36.0f * s_canvas_zoom);
-        ImVec2 prev_img_in(GetNodeScreenPos(*pPreview).x, GetNodeScreenPos(*pPreview).y + 36.0f * s_canvas_zoom);
+        ImVec2 vae_img_out(GetNodeScreenPos(*pVae).x + GetNodeSize(*pVae).x, GetNodeScreenPos(*pVae).y + 36.0f);
+        ImVec2 prev_img_in(GetNodeScreenPos(*pPreview).x, GetNodeScreenPos(*pPreview).y + 36.0f);
         DrawGlowingBezier(draw_list, vae_img_out, prev_img_in, ImColor(0, 210, 255));
         DrawPinCircle(vae_img_out, ImColor(0, 210, 255), "IMAGE", false);
         DrawPinCircle(prev_img_in, ImColor(0, 210, 255), "", true);
@@ -2806,21 +2803,20 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
 
         ImGui::PushStyleColor(ImGuiCol_ChildBg, bg_col);
         ImGui::PushStyleColor(ImGuiCol_Border,  border_col);
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f * s_canvas_zoom);
-        ImGui::SetWindowFontScale(s_canvas_zoom);
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f);
+        ImGui::SetWindowFontScale(1.0f);
 
         char child_id[64];
         snprintf(child_id, sizeof(child_id), "NodeBox_%d", node.id);
         ImGui::BeginChild(child_id, n_size, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         {
             // HEADER BAR: FULL-WIDTH INVISIBLE DRAG BUTTON (100% SMOOTH DRAGGING)
-            float header_h = 28.0f * s_canvas_zoom;
-            if (header_h < 22.0f) header_h = 22.0f;
+            float header_h = 28.0f;
 
             char drag_btn_id[64];
             snprintf(drag_btn_id, sizeof(drag_btn_id), "##drag_header_%d", node.id);
             ImGui::SetCursorPos(ImVec2(0, 0));
-            ImGui::InvisibleButton(drag_btn_id, ImVec2(n_size.x - 28.0f * s_canvas_zoom, header_h));
+            ImGui::InvisibleButton(drag_btn_id, ImVec2(n_size.x - 28.0f, header_h));
 
             bool is_header_active = ImGui::IsItemActive();
             if (is_header_active) {
@@ -2837,7 +2833,7 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
             draw_list->AddRectFilled(
                 n_screen,
                 ImVec2(n_screen.x + n_size.x, n_screen.y + header_h),
-                hbg, 10.0f * s_canvas_zoom, ImDrawFlags_RoundCornersTop
+                hbg, 10.0f, ImDrawFlags_RoundCornersTop
             );
 
             // Highlight border menyala saat node sedang digeser
@@ -2845,16 +2841,16 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
                 draw_list->AddRect(
                     n_screen,
                     ImVec2(n_screen.x + n_size.x, n_screen.y + n_size.y),
-                    ImColor(0, 220, 255, 240), 10.0f * s_canvas_zoom, 0, 2.0f
+                    ImColor(0, 220, 255, 240), 10.0f, 0, 2.0f
                 );
             }
 
             // Grip handle "::" dan judul node
-            ImGui::SetCursorPos(ImVec2(8.0f * s_canvas_zoom, 4.0f * s_canvas_zoom));
+            ImGui::SetCursorPos(ImVec2(8.0f, 4.0f));
             ImGui::TextColored(header_txt_col, ":: %s", node.title.c_str());
 
             // Tombol [x] di pojok kanan header untuk menghapus node bebas
-            ImGui::SetCursorPos(ImVec2(n_size.x - 24.0f * s_canvas_zoom, 3.0f * s_canvas_zoom));
+            ImGui::SetCursorPos(ImVec2(n_size.x - 24.0f, 3.0f));
             char close_btn_id[32];
             snprintf(close_btn_id, sizeof(close_btn_id), "x##del_%d", node.id);
             if (ImGui::SmallButton(close_btn_id)) {
@@ -2862,7 +2858,7 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Hapus node ini dari alur kanvas (Kurangi Node)");
 
-            ImGui::SetCursorPosY(header_h + 4.0f * s_canvas_zoom);
+            ImGui::SetCursorPosY(header_h + 4.0f);
             ImGui::Separator();
             ImGui::Spacing();
 
@@ -2894,26 +2890,26 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
             }
             else if (node.type == NODE_TYPE_PROMPT) {
                 ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 0.9f), "Prompt Utama (Positif):");
-                ImGui::InputTextMultiline("##PromptPos", node.prompt, sizeof(node.prompt), ImVec2(-1, 56 * s_canvas_zoom));
+                ImGui::InputTextMultiline("##PromptPos", node.prompt, sizeof(node.prompt), ImVec2(-1, 56));
 
                 ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.45f, 0.9f), "Negative Prompt (Hal Dihindari):");
                 ImGui::SetNextItemWidth(-1);
                 ImGui::InputText("##PromptNeg", node.neg_prompt, sizeof(node.neg_prompt));
 
                 ImGui::Spacing();
-                if (ImGui::Button("+ 8K DSLR", ImVec2(0, 22 * s_canvas_zoom))) {
+                if (ImGui::Button("+ 8K DSLR", ImVec2(0, 22))) {
                     strcat(node.prompt, ", Canon EOS R5 85mm f/1.4, 8k uhd photorealistic");
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("+ Pori Kulit", ImVec2(0, 22 * s_canvas_zoom))) {
+                if (ImGui::Button("+ Pori Kulit", ImVec2(0, 22))) {
                     strcat(node.prompt, ", ultra detailed natural skin texture, micro pores");
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("+ Sunset", ImVec2(0, 22 * s_canvas_zoom))) {
+                if (ImGui::Button("+ Sunset", ImVec2(0, 22))) {
                     strcat(node.prompt, ", golden hour warm sunset lighting");
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("Bersihkan", ImVec2(0, 22 * s_canvas_zoom))) {
+                if (ImGui::Button("Bersihkan", ImVec2(0, 22))) {
                     node.prompt[0] = 0;
                 }
                 ImGui::TextColored(ImVec4(0.22f, 0.74f, 0.97f, 1.0f), "Output: CONDITIONING ->");
@@ -2921,7 +2917,7 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
             else if (node.type == NODE_TYPE_CONTROLNET) {
                 ImGui::Checkbox("Aktifkan ControlNet", &node.cnet_enabled);
                 ImGui::SameLine();
-                if (ImGui::Button("Pilih Foto Acuan", ImVec2(0, 22 * s_canvas_zoom))) {
+                if (ImGui::Button("Pilih Foto Acuan", ImVec2(0, 22))) {
                     std::string chosen = OpenImageFileDialog(g_hMainWnd);
                     if (!chosen.empty()) {
                         strncpy(node.cnet_img_path, chosen.c_str(), sizeof(node.cnet_img_path) - 1);
@@ -2971,7 +2967,7 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
                 ImGui::Checkbox("Acak Seed", &node.random_seed);
                 if (!node.random_seed) {
                     ImGui::SameLine();
-                    ImGui::SetNextItemWidth(110.0f * s_canvas_zoom);
+                    ImGui::SetNextItemWidth(110.0f);
                     ImGui::InputInt("##Seed", &node.seed);
                 }
                 ImGui::TextColored(ImVec4(0.12f, 0.72f, 0.52f, 1.0f), "Output: LATENT ->");
@@ -2996,7 +2992,7 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
                 if (g_is_processing) {
                     double el = std::chrono::duration<double>(std::chrono::steady_clock::now() - g_process_start_time).count();
                     ImGui::TextColored(ImVec4(0.35f, 0.85f, 1.0f, 1.0f), "Merender... (%.1fs)", el);
-                    ImGui::ProgressBar(g_process_progress.load(), ImVec2(-1, 14 * s_canvas_zoom), "");
+                    ImGui::ProgressBar(g_process_progress.load(), ImVec2(-1, 14), "");
                     ImGui::Spacing();
                     ImGui::TextDisabled("AVX2 / CUDA Direct3D 11 Pipeline...");
                 } else {
@@ -3013,7 +3009,7 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
                         }
                     }
 
-                    float img_box_size = (node.base_size.x - 24.0f) * s_canvas_zoom;
+                    float img_box_size = node.base_size.x - 24.0f;
                     if (img_box_size < 120.0f) img_box_size = 120.0f;
 
                     if (last_tex != NULL) {
@@ -3022,17 +3018,17 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
                             ImGui::SetTooltip("Klik [Perbesar] untuk melihat resolusi layar penuh.");
                         }
                         ImGui::Spacing();
-                        if (ImGui::Button("Buka File", ImVec2(0, 24 * s_canvas_zoom))) {
+                        if (ImGui::Button("Buka File", ImVec2(0, 24))) {
                             ShellExecuteA(NULL, "open", last_img_path.c_str(), NULL, NULL, SW_SHOWNORMAL);
                         }
                         ImGui::SameLine();
-                        if (ImGui::Button("Perbesar", ImVec2(0, 24 * s_canvas_zoom))) {
+                        if (ImGui::Button("Perbesar", ImVec2(0, 24))) {
                             g_fullscreen_image_view = last_tex;
                             g_fullscreen_image_path = last_img_path;
                             g_show_fullscreen_image_modal = true;
                         }
                         ImGui::SameLine();
-                        if (ImGui::Button("Folder", ImVec2(0, 24 * s_canvas_zoom))) {
+                        if (ImGui::Button("Folder", ImVec2(0, 24))) {
                             ShellExecuteA(NULL, "open", "outputs", NULL, NULL, SW_SHOWNORMAL);
                         }
                     } else {
@@ -3053,7 +3049,7 @@ static void RenderNodeStudioCanvas(float panel_w, float panel_h) {
             }
             else if (node.type == NODE_TYPE_NOTE) {
                 ImGui::TextDisabled("Catatan Alur & Ide Prompt:");
-                ImGui::InputTextMultiline("##NoteInput", node.note_text, sizeof(node.note_text), ImVec2(-1, 85 * s_canvas_zoom));
+                ImGui::InputTextMultiline("##NoteInput", node.note_text, sizeof(node.note_text), ImVec2(-1, 85));
             }
         }
         ImGui::EndChild();
