@@ -2345,8 +2345,8 @@ void RenderD3D11StatusBar(float app_width, float app_height) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f, 4.0f));
     ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
 
-    if (ImGui::BeginChild("D3D11StatusBar", ImVec2(app_width, bar_height), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
-        HardwareTelemetrySnapshot snap = HardwareTelemetry::Get().GetSnapshot();
+    ImGui::BeginChild("D3D11StatusBar", ImVec2(app_width, bar_height), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    HardwareTelemetrySnapshot snap = HardwareTelemetry::Get().GetSnapshot();
 
         // 1. RAM Usage Meter
         ImVec4 ram_col = ImVec4(0.10f, 0.85f, 0.55f, 1.0f);
@@ -2412,8 +2412,7 @@ void RenderD3D11StatusBar(float app_width, float app_height) {
             ImGui::TextDisabled("D3D11 | %.1f FPS (%.1f ms)", fps, 1000.0f / (fps > 1.0f ? fps : 1.0f));
         }
 
-        ImGui::EndChild();
-    }
+    ImGui::EndChild();
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(2);
 }
@@ -2574,6 +2573,8 @@ int WINAPI WinMain
         GetClientRect(hwnd, &rect);
         float app_width = (float)(rect.right - rect.left);
         float app_height = (float)(rect.bottom - rect.top);
+        if (app_width < 200.0f) app_width = 200.0f;
+        if (app_height < 200.0f) app_height = 200.0f;
 
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(app_width, app_height));
