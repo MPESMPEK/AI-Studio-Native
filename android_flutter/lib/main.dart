@@ -410,6 +410,7 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
     _processor?.dispose();
     _cannyProcessor?.dispose();
     _promptController.dispose();
+    _negativePromptController.dispose();
     _skipLayersController.dispose(); // Dispose the new controller
     _scrollController.dispose(); // Dispose ScrollController
     super.dispose();
@@ -2726,14 +2727,17 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
               key: _promptFieldKey,
               placeholder: const Text('Tulis Prompt (atau pakai tombol sisip di atas)...'),
               controller: _promptController,
-              onChanged: (String? v) => setState(() => prompt = v ?? ''),
+              onChanged: (String? v) {
+                prompt = v ?? '';
+              },
             ),
             const SizedBox(height: 16),
             ShadInput(
               placeholder: const Text('Negative Prompt (Anti-Plastik)'),
               controller: _negativePromptController,
-              onChanged: (String? v) =>
-                  setState(() => negativePrompt = v ?? ''),
+              onChanged: (String? v) {
+                negativePrompt = v ?? '';
+              },
             ),
             const SizedBox(height: 16),
 
