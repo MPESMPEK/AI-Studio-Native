@@ -416,11 +416,179 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
   }
 
   Future<String> getModelDirectory() async {
-    final directory = Directory('/storage/emulated/0/Local Diffusion/Models');
+    final directory = Directory('/storage/emulated/0/Documents/AIStudio/models');
     if (!await directory.exists()) {
       await directory.create(recursive: true);
     }
     return directory.path;
+  }
+
+  static const String _defaultAntiPlasticNegative =
+      'bad anatomy, deformed, mutated, extra limbs, bad hands, bad fingers, blurry, bad face, deformed eyes, crossed eyes, disfigured, cartoon, 3d, render, doll, plastic skin, airbrushed, smooth skin, watermark, low quality';
+
+  void _appendPromptTag(String tag) {
+    final current = _promptController.text.trim();
+    if (current.toLowerCase().contains(tag.toLowerCase())) return;
+    final updated = current.isEmpty ? tag : '$current, $tag';
+    setState(() {
+      _promptController.text = updated;
+      _promptController.selection = TextSelection.fromPosition(
+        TextPosition(offset: updated.length),
+      );
+      prompt = updated;
+    });
+  }
+
+  void _applyAIStudioPreset({
+    required int presetSteps,
+    required double presetCfg,
+    required String presetSampler,
+    required int presetW,
+    required int presetH,
+    required String label,
+  }) {
+    setState(() {
+      steps = presetSteps;
+      cfg = presetCfg;
+      samplingMethod = presetSampler;
+      width = presetW;
+      height = presetH;
+      if (_negativePromptController.text.trim().isEmpty) {
+        _negativePromptController.text = _defaultAntiPlasticNegative;
+        negativePrompt = _defaultAntiPlasticNegative;
+      }
+      _message = 'Preset AI Studio aktif: $label ($presetW×$presetH, $presetSteps steps)';
+    });
+  }
+
+  Widget _buildQuickChip(String label, VoidCallback onTap, {Color? accent}) {
+    final c = accent ?? const Color(0xFF3182CE);
+    return InkWell(
+      onTap: (isModelLoading || isGenerating) ? null : onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: c.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: c.withOpacity(0.45)),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFFF1F5F9),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAIStudioQuickRibbon(ShadThemeData theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1421),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF243047)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Preset Cepat AI Studio (1-Klik)',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFF1F5F9),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildQuickChip(
+                'DSLR Potret (512×768)',
+                () => _applyAIStudioPreset(
+                  presetSteps: 25,
+                  presetCfg: 7.0,
+                  presetSampler: 'euler_a',
+                  presetW: 512,
+                  presetH: 768,
+                  label: 'DSLR Potret',
+                ),
+                accent: const Color(0xFF3182CE),
+              ),
+              _buildQuickChip(
+                'SDXL Juggernaut (768×1024)',
+                () => _applyAIStudioPreset(
+                  presetSteps: 22,
+                  presetCfg: 5.0,
+                  presetSampler: 'euler_a',
+                  presetW: 768,
+                  presetH: 1024,
+                  label: 'SDXL Juggernaut',
+                ),
+                accent: const Color(0xFF8B5CF6),
+              ),
+              _buildQuickChip(
+                'Kilat 8-Step',
+                () => _applyAIStudioPreset(
+                  presetSteps: 8,
+                  presetCfg: 2.0,
+                  presetSampler: 'lcm',
+                  presetW: 512,
+                  presetH: 768,
+                  label: 'Kilat LCM',
+                ),
+                accent: const Color(0xFF10B981),
+              ),
+              _buildQuickChip(
+                '1:1 (512×512)',
+                () => setState(() {
+                  width = 512;
+                  height = 512;
+                }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Sisip Tag Wajah Realistis:',
+            style: TextStyle(fontSize: 12, color: Color(0xFF8899AC)),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _buildQuickChip(
+                '+ Wajah 85mm',
+                () => _appendPromptTag(
+                    'raw photo, close-up portrait, Canon EOS R5 85mm f/1.4, sharp focus eyes'),
+              ),
+              _buildQuickChip(
+                '+ Pori Kulit DSLR',
+                () => _appendPromptTag(
+                    'natural skin texture, visible micro pores, realistic facial features, 8k uhd'),
+              ),
+              _buildQuickChip(
+                '+ Cahaya Alami',
+                () => _appendPromptTag(
+                    'soft natural daylight, subtle film grain, authentic lighting'),
+              ),
+              _buildQuickChip(
+                '+ 1/2 Badan',
+                () => _appendPromptTag('medium shot, upper body, 50mm lens'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Uint8List _ensureRgbFormat(Uint8List bytes, int width, int height) {
@@ -2552,9 +2720,11 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
               ],
             ),
             const SizedBox(height: 16),
+            _buildAIStudioQuickRibbon(theme),
+            const SizedBox(height: 14),
             ShadInput(
               key: _promptFieldKey,
-              placeholder: const Text('Prompt'),
+              placeholder: const Text('Tulis Prompt (atau pakai tombol sisip di atas)...'),
               controller: _promptController,
               onChanged: (String? v) => setState(() => prompt = v ?? ''),
             ),
