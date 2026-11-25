@@ -313,6 +313,14 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
     'OpenCL'
   ]; // Available backends
 
+  // Auto-scanned AI Studio models
+  List<File> _autoModels = [];
+  List<File> _autoVaes = [];
+  List<File> _autoLoras = [];
+  String? _selectedAutoModelPath;
+  String? _selectedAutoVaePath;
+  String? _selectedAutoLoraPath;
+
   void _showTemporaryError(String error) {
     _errorMessageTimer?.cancel();
     setState(() {
@@ -401,6 +409,248 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
         _cannyImage = Image.memory(bytes!.buffer.asUint8List());
       });
     });
+
+    _scanAIStudioModels();
+  }
+
+  Future<void> _scanAIStudioModels() async {
+    const base = '/storage/emulated/0/Documents/AIStudio/models';
+    List<File> listValid(String sub, List<String> exts) {
+      final dir = Directory('$base/$sub');
+      if (!dir.existsSync()) return [];
+      final files = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) {
+            final low = f.path.toLowerCase();
+            return exts.any((e) => low.endsWith(e));
+          })
+          .toList();
+      files.sort((a, b) => a.path.compareTo(b.path));
+      return files;
+    }
+
+    final models = listValid('Gambar_Diffusion', ['.safetensors', '.gguf', '.ckpt']);
+    final vaes = listValid('VAE', ['.safetensors', '.gguf', '.pt']);
+    final loras = listValid('LoRA', ['.safetensors', '.gguf']);
+
+    if (!mounted) return;
+    setState(() {
+      _autoModels = models;
+      _autoVaes = vaes;
+      _autoLoras = loras;
+      if (_autoModels.isNotEmpty &&
+          (_selectedAutoModelPath == null ||
+              !_autoModels.any((f) => f.path == _selectedAutoModelPath))) {
+        _selectedAutoModelPath = _autoModels.first.path;
+      }
+      if (_selectedAutoVaePath != null &&
+          !_autoVaes.any((f) => f.path == _selectedAutoVaePath)) {
+        _selectedAutoVaePath = null;
+      }
+      if (_selectedAutoLoraPath != null &&
+          !_autoLoras.any((f) => f.path == _selectedAutoLoraPath)) {
+        _selectedAutoLoraPath = null;
+      }
+    });
+  }
+
+  void _loadSelectedAutoModel() {
+    if (_selectedAutoModelPath == null) return;
+    final modelName = _selectedAutoModelPath!.split('/').last.toLowerCase();
+    final isSdxlOrFlux = modelName.contains('xl') || modelName.contains('flux');
+
+    setState(() {
+      // Set LoRA
+      _loraPath = _selectedAutoLoraPath;
+      if (_loraPath != null) {
+        loadedComponents['LoRA'] = true;
+      } else {
+        loadedComponents.remove('LoRA');
+      }
+
+      // Set VAE or TAESD automatically based on filename
+      if (_selectedAutoVaePath != null) {
+        final vaeName = _selectedAutoVaePath!.split('/').last.toLowerCase();
+        if (vaeName.contains('taesd')) {
+          _taesdPath = _selectedAutoVaePath;
+          useTAESD = true;
+          _vaePath = null;
+          useVAE = false;
+          loadedComponents['TAESD'] = true;
+          loadedComponents.remove('VAE');
+        } else {
+          _vaePath = _selectedAutoVaePath;
+          useVAE = true;
+          _taesdPath = null;
+          useTAESD = false;
+          loadedComponents['VAE'] = true;
+          loadedComponents.remove('TAESD');
+        }
+      } else {
+        _vaePath = null;
+        useVAE = false;
+        _taesdPath = null;
+        useTAESD = false;
+        loadedComponents.remove('VAE');
+        loadedComponents.remove('TAESD');
+      }
+
+      // Auto-tune resolution & CFG for SDXL vs SD 1.5
+      if (isSdxlOrFlux) {
+        width = 768;
+        height = 1024;
+        cfg = 5.0;
+        steps = 22;
+      } else {
+        width = 512;
+        height = 768;
+        cfg = 7.0;
+        steps = 25;
+      }
+    });
+
+    _initializeProcessor(
+      _selectedAutoModelPath!,
+      false,
+      SDType.NONE,
+      Schedule.DEFAULT,
+    );
+  }
+
+  Widget _buildAutoModelCard(ShadThemeData theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1421),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF243047)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Model Terdeteksi (AIStudio)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFF1F5F9),
+                ),
+              ),
+              InkWell(
+                onTap: (isModelLoading || isGenerating) ? null : _scanAIStudioModels,
+                child: const Row(
+                  children: [
+                    Icon(Icons.refresh, size: 16, color: Color(0xFF3182CE)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Scan Ulang',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF3182CE)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_autoModels.isEmpty)
+            const Text(
+              'Belum ada model di Documents/AIStudio/models/Gambar_Diffusion/',
+              style: TextStyle(fontSize: 12, color: Color(0xFF8899AC)),
+            )
+          else ...[
+            ShadSelect<String>(
+              placeholder: Text(
+                _selectedAutoModelPath?.split('/').last ?? 'Pilih Model Utama',
+              ),
+              enabled: !(isModelLoading || isGenerating),
+              options: _autoModels
+                  .map((f) => ShadOption(
+                        value: f.path,
+                        child: Text(f.path.split('/').last),
+                      ))
+                  .toList(),
+              selectedOptionBuilder: (context, value) =>
+                  Text(value.split('/').last, overflow: TextOverflow.ellipsis),
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedAutoModelPath = val);
+              },
+            ),
+            const SizedBox(height: 8),
+            ShadSelect<String>(
+              placeholder: Text(
+                _selectedAutoVaePath != null
+                    ? 'VAE: ${_selectedAutoVaePath!.split('/').last}'
+                    : 'VAE: Bawaan Model (Opsional)',
+              ),
+              enabled: !(isModelLoading || isGenerating),
+              options: [
+                const ShadOption(
+                  value: '__none__',
+                  child: Text('VAE: Bawaan Model'),
+                ),
+                ..._autoVaes.map((f) => ShadOption(
+                      value: f.path,
+                      child: Text('VAE: ${f.path.split('/').last}'),
+                    )),
+              ],
+              selectedOptionBuilder: (context, value) => Text(
+                value == '__none__'
+                    ? 'VAE: Bawaan Model'
+                    : 'VAE: ${value.split('/').last}',
+                overflow: TextOverflow.ellipsis,
+              ),
+              onChanged: (val) {
+                setState(() =>
+                    _selectedAutoVaePath = (val == null || val == '__none__') ? null : val);
+              },
+            ),
+            const SizedBox(height: 8),
+            ShadSelect<String>(
+              placeholder: Text(
+                _selectedAutoLoraPath != null
+                    ? 'LoRA: ${_selectedAutoLoraPath!.split('/').last}'
+                    : 'LoRA: Tanpa LoRA (Opsional)',
+              ),
+              enabled: !(isModelLoading || isGenerating),
+              options: [
+                const ShadOption(
+                  value: '__none__',
+                  child: Text('LoRA: Tanpa LoRA'),
+                ),
+                ..._autoLoras.map((f) => ShadOption(
+                      value: f.path,
+                      child: Text('LoRA: ${f.path.split('/').last}'),
+                    )),
+              ],
+              selectedOptionBuilder: (context, value) => Text(
+                value == '__none__'
+                    ? 'LoRA: Tanpa LoRA'
+                    : 'LoRA: ${value.split('/').last}',
+                overflow: TextOverflow.ellipsis,
+              ),
+              onChanged: (val) {
+                setState(() =>
+                    _selectedAutoLoraPath = (val == null || val == '__none__') ? null : val);
+              },
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ShadButton(
+                enabled: !(isModelLoading || isGenerating) && _selectedAutoModelPath != null,
+                onPressed: _loadSelectedAutoModel,
+                child: const Text('⚡ Pasang & Muat Model Terpilih'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   @override
@@ -1535,7 +1785,9 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
                 ),
               ],
             ),
-            const SizedBox(height: 16), // Spacing after backend dropdown
+            const SizedBox(height: 12),
+            _buildAutoModelCard(theme),
+            const SizedBox(height: 12), // Spacing after auto-model card
             // --- Model Loading Row ---
             Row(
               children: [
