@@ -263,6 +263,10 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
   int _cores = 0;
   List<String> _loraNames = [];
   final TextEditingController _promptController = TextEditingController();
+  final TextEditingController _negativePromptController = TextEditingController(
+    text:
+        'bad anatomy, deformed, mutated, extra limbs, bad hands, bad fingers, blurry, bad face, deformed eyes, crossed eyes, disfigured, cartoon, 3d, render, doll, plastic skin, airbrushed, smooth skin, watermark, low quality',
+  );
   final Map<String, OverlayEntry?> _overlayEntries = {};
   final GlobalKey _promptFieldKey = GlobalKey();
   final Map<String, GlobalKey> _loraKeys = {};
@@ -285,10 +289,11 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
   double cfg = 7;
   int steps = 25;
   int width = 512;
-  int height = 512;
+  int height = 768;
   String seed = "-1";
   String prompt = '';
-  String negativePrompt = '';
+  String negativePrompt =
+      'bad anatomy, deformed, mutated, extra limbs, bad hands, bad fingers, blurry, bad face, deformed eyes, crossed eyes, disfigured, cartoon, 3d, render, doll, plastic skin, airbrushed, smooth skin, watermark, low quality';
   double progress = 0;
   String status = '';
   Map<String, bool> loadedComponents = {};
@@ -966,7 +971,7 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
                 }
                 Navigator.of(context).pop();
               },
-              child: const Text('Load Model'),
+              child: const Text('Muat Model'),
             ),
           ],
         ),
@@ -1368,7 +1373,7 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
                 ShadButton(
                   enabled: !(isModelLoading || isGenerating),
                   onPressed: showModelLoadDialog,
-                  child: const Text('Load Model'),
+                  child: const Text('Muat Model'),
                 ),
                 const SizedBox(width: 8),
                 if (_ramUsage.isNotEmpty)
@@ -1554,7 +1559,7 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
                       }
                     }
                   },
-                  child: const Text('Load TAESD'),
+                  child: const Text('Muat TAESD'),
                 ),
                 const SizedBox(width: 8),
                 // Update the TAESD checkbox onChanged handler:
@@ -1582,7 +1587,7 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
                             }
                           });
                         },
-                  label: const Text('Use TAESD'),
+                  label: const Text('Gunakan TAESD'),
                 ),
               ],
             ),
@@ -1601,7 +1606,7 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
               children: [
                 ShadAccordionItem<Map<String, dynamic>>(
                   value: const {},
-                  title: const Text('Advanced Model Options'), // Renamed title
+                  title: const Text('Opsi Model Lanjutan'),
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Column(
@@ -1669,7 +1674,7 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
                                     });
                                   }
                                 },
-                                child: const Text('Load Lora'),
+                                child: const Text('Muat LoRA'),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -2500,7 +2505,7 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
                                     }
                                   }
                                 },
-                                child: const Text('Load VAE'),
+                                child: const Text('Muat VAE'),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -2535,7 +2540,7 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
                                         }
                                       });
                                     },
-                              label: const Text('Use VAE'),
+                              label: const Text('Gunakan VAE'),
                             ),
                           ],
                         ),
@@ -2555,7 +2560,8 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
             ),
             const SizedBox(height: 16),
             ShadInput(
-              placeholder: const Text('Negative Prompt'),
+              placeholder: const Text('Negative Prompt (Anti-Plastik)'),
+              controller: _negativePromptController,
               onChanged: (String? v) =>
                   setState(() => negativePrompt = v ?? ''),
             ),
@@ -2566,7 +2572,7 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
               children: [
                 ShadAccordionItem<Map<String, dynamic>>(
                   value: const {}, // Unique value for this item
-                  title: const Text('Advanced Sampling Options'),
+                  title: const Text('Opsi Sampling Lanjutan'),
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Column(
@@ -2780,7 +2786,7 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
             const SizedBox(height: 16),
             Row(
               children: [
-                const Text('Use ControlNet'),
+                const Text('Gunakan ControlNet'),
                 const SizedBox(width: 8),
                 ShadSwitch(
                   value: useControlNet,
@@ -3245,7 +3251,7 @@ class _StableDiffusionAppState extends State<StableDiffusionApp>
             const SizedBox(height: 16), // Added spacing
             Row(
               children: [
-                const Text('Sampling Method'),
+                const Text('Metode Sampling'),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ShadSelect<String>(
